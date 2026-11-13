@@ -275,7 +275,7 @@ function infoText(me) {
   const point = (view.objectives || []).find((o) => o.q === hover.q && o.r === hover.r);
   const tname = t.narrow && !state.map.ceiling ? 'Standing stones' : t.name;     // above ground they are menhirs
   const lines = [`${tname} · height ${c.e} · ` +
-    (t.cost === Infinity ? 'impassable, blocks sight' : `move cost ${t.cost} · cover ${t.cover}`) + (t.narrow ? ' · too tight for big creatures' : '') + (t.low ? ' · flyers cannot pass' : '')];
+    (t.cost === Infinity ? (c.t === 'lava' ? 'impassable on foot; flyers cross; does not block sight' : 'impassable, blocks sight') : `move cost ${t.cost} · cover ${t.cover}`) + (t.narrow ? ' · too tight for big creatures' : '') + (t.low ? ' · flyers cannot pass' : '')];
   if (point) {
     lines.push(`Control point — ${point.owner === null ? 'unclaimed' : 'held by ' + TEAM[point.owner]}`
       + (editing ? '' : '. End a turn standing here to take it.'));
@@ -694,7 +694,7 @@ $('mapSel').addEventListener('change', (ev) => {
 // ---- Editor ----
 
 const BRUSHES = [
-  ['Terrain', [['Grass', 't:grass'], ['Forest', 't:forest'], ['Ruins', 't:ruins'], ['Stalagmites / stones', 't:spikes'], ['Stalactites', 't:stalactites'], ['Water', 't:water'], ['Rock', 't:rock']]],
+  ['Terrain', [['Grass', 't:grass'], ['Forest', 't:forest'], ['Ruins', 't:ruins'], ['Stalagmites / stones', 't:spikes'], ['Stalactites', 't:stalactites'], ['Water', 't:water'], ['Lava', 't:lava'], ['Rock', 't:rock']]],
   ['Height', [['0', 'e:0'], ['1', 'e:1'], ['2', 'e:2'], ['3', 'e:3']]],
   ['Markers (click to place or remove)', [['Blue spawn', 'spawn:0'], ['Red spawn', 'spawn:1'], ['Neutral monster', 'spawn:2'], ['Control point', 'objective']]],
   ['Board shape', [['Add hex', 'add'], ['Remove hex', 'remove']]],
@@ -823,12 +823,12 @@ function paint(h, first) {
   } else if (kind === 't') {
     if (c.t === val) return;
     c.t = val;
-    if (val === 'rock') units = dropSpawn();
+    if (val === 'rock' || val === 'lava') units = dropSpawn();
   } else if (kind === 'e') {
     if (c.e === +val) return;
     c.e = +val;
   } else if (kind === 'spawn') {
-    if (!first || c.t === 'rock') return;
+    if (!first || c.t === 'rock' || c.t === 'lava') return;
     const team = +val, cls = team === 2 && $('edCls').value === 'auto' ? 'spider' : $('edCls').value;
     const list = team === 2 ? map.wild || [] : map.spawns[team];
     const same = list.some((s) => s.q === h.q && s.r === h.r && (s.cls || 'auto') === cls);
@@ -1093,6 +1093,9 @@ window.addEventListener('keydown', unlock);
 $('sound').checked = store('sound') !== 'off';
 $('grid').value = store('grid') ?? 1;
 R.grid = +$('grid').value;
+$('edges').checked = store('edges') !== 'off';
+R.edges = $('edges').checked;
+$('edges').addEventListener('change', (ev) => { R.edges = ev.target.checked; store('edges', R.edges ? 'on' : 'off'); });
 $('grid').addEventListener('input', (ev) => { R.grid = +ev.target.value; store('grid', ev.target.value); });
 setEnabled($('sound').checked);
 $('sound').addEventListener('change', (ev) => { setEnabled(ev.target.checked); store('sound', ev.target.checked ? 'on' : 'off'); });

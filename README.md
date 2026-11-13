@@ -10,6 +10,9 @@ Press `V` to switch between the top-down view (default; height shown as a number
 contour/cliff edges) and the 2.5D view. Hover an enemy to see where it can strike next turn; with an
 archer selected, hovering an enemy draws the sight line and marks what blocks it.
 
+**Display** — "Grid lines" fades the hex grid; "Height edges" switches off the dark slope and cliff lines of the
+top-down view (the height numbers stay).
+
 **Zoom and pan** — mouse wheel zooms on the cursor; drag with the right or middle button (or hold Space and
 drag) to pan; arrow keys pan, `+` / `-` zoom, `0` or the Fit button shows the whole map again.
 
@@ -45,6 +48,9 @@ cave monsters, and neutral trolls and spiders.
 small buttes only by flyers and spiders), a caravanserai between two pools at the centre, a well on each army's side,
 an obelisk ring north and south, and two neutral sand worms. Five control points, armies of ten.
 
+`emberflow` is a lava tube (337 hexes, ceiling): one broad tunnel between the armies with a river of lava across it,
+crossed on foot only by a wide basalt bridge in the middle and a narrow span to the north and south.
+
 Four ready-made maps are included: `stonebridge` (meadow, a river with a ruined causeway),
 `frostmere` (snow, a frozen lake around an island fort) and `sunspire` (desert, a cliff-sided temple
 mesa climbed only by ramps on its north and south, with an oasis well toward each army) and `gloomhollow` (a cave: army chambers, a wide hall into a
@@ -56,7 +62,7 @@ The map file format is documented at the top of the "Map files" section in `src/
 ## Rules
 
 - Each turn, every unit may move once and then attack (or wait). Eliminate the other team; round 30 is a draw.
-- **Terrain** — forest: move cost 2, cover 1 · ruins: cover 2 · stalagmites (painted as standing stones above ground): move cost 2, cover 1, and only one-hex creatures fit among them (big ones can't stand there; flyers and burrowers may pass) · water: move cost 2, occupant takes +1 and deals -1 · stalactites: open ground for walkers, but flyers can't pass or land · rock: impassable, blocks sight.
+- **Terrain** — forest: move cost 2, cover 1 · ruins: cover 2 · stalagmites (painted as standing stones above ground): move cost 2, cover 1, and only one-hex creatures fit among them (big ones can't stand there; flyers and burrowers may pass) · water: move cost 2, occupant takes +1 and deals -1 · stalactites: open ground for walkers, but flyers can't pass or land · lava: impassable on foot and nobody can stand in it, but it does not block sight and flyers cross it · rock: impassable, blocks sight.
 - **Height** (0–3) — climbing costs +1 move, a 2-level step is a cliff. Attacks get +1 damage per level above the target (-1 per level below, max 2). Archers get +1 range from high ground. Hills block line of sight.
 - **Objective** — *Eliminate* (default), or *Hold the points*: the map has control points (ringed, with a
   pennant). At the end of each team's turn, a point with a unit standing on it goes to that unit's team and

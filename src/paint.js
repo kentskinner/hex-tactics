@@ -89,7 +89,7 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
   // ---- Stage 1: low-res fields ----
   const lw = Math.ceil(W / L) + 2, lh = Math.ceil(H / L) + 2, N = lw * lh;
   const fWater = new Float32Array(N), fForest = new Float32Array(N), fRuins = new Float32Array(N);
-  const fRock = new Float32Array(N), fElev = new Float32Array(N);
+  const fRock = new Float32Array(N), fElev = new Float32Array(N), fLava = new Float32Array(N);
   for (let j = 0; j < lh; j++) for (let i = 0; i < lw; i++) {
     const X = i * L, Y = j * L;
     const wx = X + (fbm(X / (s * 1.1), Y / (s * 1.1), seed + 1, 3) - 0.5) * s * 1.0;
@@ -103,7 +103,10 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
     else if (c.t === 'forest') fForest[k] = 1;
     else if (c.t === 'ruins') fRuins[k] = 1;
     else if (c.t === 'rock') fRock[k] = 1;
+    else if (c.t === 'lava') fLava[k] = 1;
   }
+  const fHeat = blur(Float32Array.from(fLava), lw, lh, (s * 0.75) / L);      // the glow lava throws on what is around it
+  blur(fLava, lw, lh, (s * 0.13) / L);
   const fDepth = blur(Float32Array.from(fWater), lw, lh, (s * 0.5) / L);
   blur(fWater, lw, lh, (s * 0.14) / L);
   blur(fForest, lw, lh, (s * 0.24) / L);
@@ -239,6 +242,24 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
         else if (cave) { r += (58 - r) * t; g += (66 - g) * t; bl += (70 - bl) * t; }
         else if (desert) { r += (150 - r) * t; g += (140 - g) * t; bl += (84 - bl) * t; }       // damp, greener bank
         else { r += (142 - r) * t; g += (126 - g) * t; bl += (90 - bl) * t; }
+      }
+
+      // Lava: a bright, slowly flowing core under plates of dark crust, and an orange glow on its banks.
+      const lava = S(fLava);
+      if (lava > 0.5) {
+        const core = sstep(0.5, 0.9, lava);
+        const flow = fbm(X / (s * 0.55), Y / (s * 0.22), seed + 60, 4), plates = fbm(X / (s * 0.21), Y / (s * 0.21), seed + 61, 3);
+        let lr = 255, lg = 96 + 150 * flow * core, lb = 16 + 90 * flow * flow * core;
+        const crust = sstep(0.5, 0.6, plates) * (1 - 0.45 * core) + (1 - core) * 0.35;
+        t = clamp(crust, 0, 1);
+        lr += (74 - lr) * t; lg += (26 - lg) * t; lb += (18 - lb) * t;
+        const seam = 1 - sstep(0, 0.035, Math.abs(plates - 0.5));          // glowing cracks between the plates
+        lr += (255 - lr) * seam * 0.8; lg += (214 - lg) * seam * 0.8; lb += (110 - lb) * seam * 0.6;
+        r = lr; g = lg; bl = lb;
+      } else {
+        t = clamp(S(fHeat) * 1.5, 0, 1) * (lava > 0.3 ? 1 : 0.8);
+        if (t > 0.01) { r += (255 - r) * t * 0.5; g += (112 - g) * t * 0.36; bl += (24 - bl) * t * 0.3; }
+        if (lava > 0.3) { t = sstep(0.3, 0.5, lava); r += (40 - r) * t * 0.7; g += (20 - g) * t * 0.7; bl += (16 - bl) * t * 0.7; }   // scorched rim
       }
 
       const grain = (hash(X, Y, seed + 40) - 0.5) * 13;

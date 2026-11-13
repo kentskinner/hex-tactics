@@ -57,7 +57,7 @@ export default {
       const out = [];
       for (const c of Object.values(state.map.cells)) {
         const k = key(c.q, c.r), cost = field.get(k);
-        if (c.t === 'rock' || cost === undefined || cost > budget) continue;
+        if (c.t === 'rock' || c.t === 'lava' || cost === undefined || cost > budget) continue;
         const hidden = !vis.has(k) || (c.t === 'forest' && !mine.some((m) => dist(m, c) <= 1));
         if (!hidden) continue;
         let near = Infinity;

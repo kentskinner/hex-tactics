@@ -28,6 +28,9 @@ export const TERRAIN = {
   spikes: { name: 'Stalagmites', cost: 2, cover: 1, narrow: true },
   // low: spikes hang from the roof. Walkers pass underneath as on open ground; flyers can't get through.
   stalactites: { name: 'Stalactites', cost: 1, cover: 0, low: true },
+  // Lava: nobody can stand in it or walk through it, but it doesn't block sight, and flyers cross it
+  // (even under a cave ceiling). Burrowers pass beneath.
+  lava:   { name: 'Lava',   cost: Infinity, cover: 0 },
   rock:   { name: 'Rock',   cost: Infinity, cover: 0 },   // impassable, blocks line of sight
 };
 
@@ -65,6 +68,8 @@ export const SPELLS = {
   blink:    { name: 'Blink',      rmin: 1, rmax: 4, cooldown: 3, blink: true },
 };
 
+// Ground nothing can stand on (rock, lava).
+export const impassable = (c) => TERRAIN[c.t].cost === Infinity;
 export const ROSTER = ['archer', 'soldier', 'scout', 'ogre', 'wizard'];
 // Monster packs: extra units for both sides (createGame's `monsters` option, or a map's own `monsters` list).
 export const PACKS = { cave: ['spider', 'bat', 'worm'] };
@@ -122,7 +127,7 @@ export function fits(state, unit, at = unit) {
   let lo = Infinity, hi = -Infinity;
   for (const c of footprint(unit, at)) {
     const cell = state.map.cells[key(c.q, c.r)];
-    if (!cell || cell.t === 'rock' || (TERRAIN[cell.t].narrow && isBig(unit)) || (TERRAIN[cell.t].low && CLASSES[unit.cls].fly)) return false;
+    if (!cell || impassable(cell) || (TERRAIN[cell.t].narrow && isBig(unit)) || (TERRAIN[cell.t].low && CLASSES[unit.cls].fly)) return false;
     const other = unitAt(state, c);
     if (other && other.id !== unit.id) return false;
     lo = Math.min(lo, cell.e); hi = Math.max(hi, cell.e);
@@ -171,7 +176,7 @@ export function createGame(map, { maxRounds = 0, fog = false, counters = true, z
   }
   for (const w of lairs) {
     const c = cellAt(map, w);
-    if (!CLASSES[w.cls] || !c || c.t === 'rock' || units.some((u) => u.q === w.q && u.r === w.r)) continue;
+    if (!CLASSES[w.cls] || !c || impassable(c) || units.some((u) => u.q === w.q && u.r === w.r)) continue;
     units.push({ id: units.length, team: WILD, cls: w.cls, q: w.q, r: w.r, hp: CLASSES[w.cls].hp, moved: false, acted: false });
   }
   // monsters: a list of classes each side gets as well (default: the map's own list, if it has one).
@@ -221,7 +226,7 @@ export function createGame(map, { maxRounds = 0, fog = false, counters = true, z
   for (const u of units) if (u.team === WILD) { u.hq = u.q; u.hr = u.r; }     // home: the middle of its territory
   let objectives = [];
   if (mode === 'hold') {
-    const placed = (map.objectives || []).filter((o) => { const c = cellAt(map, o); return c && c.t !== 'rock'; });
+    const placed = (map.objectives || []).filter((o) => { const c = cellAt(map, o); return c && !impassable(c); });
     objectives = placed.length ? placed : defaultObjectives(map);
   }
   // roster: both starting line-ups (public knowledge, even under fog).
@@ -425,7 +430,7 @@ export function defaultObjectives(map) {
   const spawn = new Set(map.spawns.flat().map((s) => key(s.q, s.r)));
   const open = Object.values(map.cells).filter((c) => {
     const k = key(c.q, c.r);
-    return c.t !== 'rock' && c.t !== 'water' && !spawn.has(k) && d0.has(k) && d1.has(k);
+    return !impassable(c) && c.t !== 'water' && !spawn.has(k) && d0.has(k) && d1.has(k);
   });
   const sum = (c) => d0.get(key(c.q, c.r)) + d1.get(key(c.q, c.r));
   const gap = (c) => Math.abs(d0.get(key(c.q, c.r)) - d1.get(key(c.q, c.r)));
@@ -619,7 +624,7 @@ export function castTargets(state, unit, sp, from = unit) {
     const s = SPELLS[sp], taken = new Set(state.units.flatMap((u) => footprint(u).map((c) => key(c.q, c.r))));
     return cellsWithin(state.map, from, s.rmax).filter((c) => {
       const d = dist(from, c);
-      return d >= s.rmin && d <= s.rmax && c.t !== 'rock' && !taken.has(key(c.q, c.r));
+      return d >= s.rmin && d <= s.rmax && !impassable(c) && !taken.has(key(c.q, c.r));
     });
   }
   if (SPELLS[sp].area || SPELLS[sp].cone) return cellsWithin(state.map, from, SPELLS[sp].rmax).filter((c) => spellReach(state.map, sp, from, c));

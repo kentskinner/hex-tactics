@@ -94,7 +94,7 @@ export function fogGoals(state, memory) {
   if (inView.size || goals.length) return goals;
   goals = state.map.spawns[1 - team].filter((p) => !vis.has(key(p.q, p.r)));
   if (goals.length) return goals;
-  return Object.values(state.map.cells).filter((c) => c.t !== 'rock' && !vis.has(key(c.q, c.r)));
+  return Object.values(state.map.cells).filter((c) => c.t !== 'rock' && c.t !== 'lava' && !vis.has(key(c.q, c.r)));
 }
 
 export default {

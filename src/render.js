@@ -13,6 +13,7 @@ const TOP = {
   stalactites: ['#6f7480', '#7b808c', '#878c98', '#9398a4'],
   rock: ['#7d8a80', '#8a968b', '#98a397', '#a6b0a3'],
   water: ['#4a93cf', '#4a93cf', '#4a93cf', '#4a93cf'],
+  lava: ['#e8641c', '#e8641c', '#e8641c', '#e8641c'],
 };
 const TEAM = [{ fill: '#3f83e0', dark: '#173763' }, { fill: '#e2574c', dark: '#6e1f1a' }, { fill: '#6fa24a', dark: '#22401a' }];
 
@@ -548,7 +549,7 @@ export class Renderer {
     for (const c of this.order) {
       if (c.e === 0) continue;
       const g = this.geo.get(key(c.q, c.r));
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 6 && this.edges !== false; i++) {      // edges can be switched off; the number stays
         const [dq, dr] = DIRS[5 - i];                 // edge i faces this neighbour
         const n = this.map.cells[key(c.q + dq, c.r + dr)];
         if (!n || n.e >= c.e) continue;
@@ -629,7 +630,15 @@ export class Renderer {
   decor(c, g) {
     const ctx = this.ctx, S = this.S, { x, y } = g;
     ctx.lineWidth = 1;
-    if (c.t === 'water') {
+    if (c.t === 'lava') {                            // bright seams in a darker crust
+      ctx.strokeStyle = 'rgba(255,225,120,0.9)'; ctx.lineWidth = 2;
+      for (const [dx, dy] of [[-0.35, -0.15], [0.05, 0.12], [-0.1, -0.32]]) {
+        ctx.beginPath();
+        ctx.moveTo(x + S * dx, y + S * dy);
+        ctx.quadraticCurveTo(x + S * (dx + 0.14), y + S * (dy + 0.1), x + S * (dx + 0.3), y + S * (dy - 0.02));
+        ctx.stroke();
+      }
+    } else if (c.t === 'water') {
       ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.5;
       for (const [dx, dy] of [[-0.3, -0.12], [0.15, 0.1]]) {
         ctx.beginPath();

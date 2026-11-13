@@ -60,7 +60,7 @@ export function mapProblem(map) {
     if (!map.spawns[t].length) return `${t ? 'Red' : 'Blue'} has no spawn points`;
     for (const s of map.spawns[t]) {
       const c = map.cells[key(s.q, s.r)];
-      if (!c || c.t === 'rock') return `A ${t ? 'Red' : 'Blue'} spawn is not on a passable hex`;
+      if (!c || c.t === 'rock' || c.t === 'lava') return `A ${t ? 'Red' : 'Blue'} spawn is not on a passable hex`;
     }
   }
   return null;
