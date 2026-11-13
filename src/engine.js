@@ -29,7 +29,10 @@ export const TERRAIN = {
   // Lava: nobody can stand in it or walk through it, but it doesn't block sight, and flyers cross it
   // (even under a cave ceiling). Burrowers pass beneath.
   lava:   { name: 'Lava',   cost: Infinity, cover: 0 },
-  rock:   { name: 'Rock',   cost: Infinity, cover: 0 },   // impassable, blocks line of sight
+  // House: one-hex creatures can go inside (slow to enter, heavy cover); big ones can't. Like rock it
+  // is tall, so it blocks sight lines that pass through it — though not for whoever is in it.
+  house:  { name: 'House',  cost: 2, cover: 2, narrow: true, tall: true },
+  rock:   { name: 'Rock',   cost: Infinity, cover: 0, tall: true },   // impassable, blocks line of sight
 };
 
 export const CLASSES = {
@@ -484,7 +487,7 @@ export function losBlocker(map, a, b) {
     const t = i / n;
     const h = hexRound(a.q + (b.q - a.q) * t + 1e-6, a.r + (b.r - a.r) * t + 2e-6);
     const c = cellAt(map, h);
-    if (c && c.e + (c.t === 'rock' ? 2 : 0) >= ea + (eb - ea) * t - 1e-9) return c;
+    if (c && c.e + (TERRAIN[c.t].tall ? 2 : 0) >= ea + (eb - ea) * t - 1e-9) return c;
   }
   return null;
 }

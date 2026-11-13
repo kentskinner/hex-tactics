@@ -119,6 +119,8 @@ async function think(team, known) {
 // with none (AI vs AI), nobody — the spectator sees everything.
 function viewer() {
   if (!state.fog || editing) return null;
+  const pick = $('fogView').value;                       // an explicit choice, e.g. to watch what an AI knows
+  if (pick !== 'auto') return pick === 'blue' ? 0 : pick === 'red' ? 1 : null;
   const humans = [0, 1].filter((t) => !ais[t]);
   return humans.length === 1 ? humans[0] : humans.length === 2 ? state.turn : null;
 }
@@ -278,7 +280,7 @@ function infoText(me) {
   const point = (view.objectives || []).find((o) => o.q === hover.q && o.r === hover.r);
   const tname = t.narrow && !state.map.ceiling ? 'Standing stones' : t.name;     // above ground they are menhirs
   const lines = [`${tname} · height ${c.e} · ` +
-    (t.cost === Infinity ? (c.t === 'lava' ? 'impassable on foot; flyers cross; does not block sight' : 'impassable, blocks sight') : `move cost ${t.cost} · cover ${t.cover}`) + (t.narrow ? ' · too tight for big creatures' : '')];
+    (t.cost === Infinity ? (c.t === 'lava' ? 'impassable on foot; flyers cross; does not block sight' : 'impassable, blocks sight') : `move cost ${t.cost} · cover ${t.cover}`) + (t.narrow ? ' · too tight for big creatures' : '') + (t.tall && t.cost !== Infinity ? ' · blocks sight through it' : '')];
   if (point) {
     lines.push(`Control point — ${point.owner === null ? 'unclaimed' : 'held by ' + TEAM[point.owner]}`
       + (editing ? '' : '. End a turn standing here to take it.'));
@@ -700,7 +702,7 @@ $('mapSel').addEventListener('change', (ev) => {
 // ---- Editor ----
 
 const BRUSHES = [
-  ['Terrain', [['Grass', 't:grass'], ['Forest', 't:forest'], ['Ruins', 't:ruins'], ['Stalagmites / stones', 't:spikes'], ['Water', 't:water'], ['Lava', 't:lava'], ['Rock', 't:rock']]],
+  ['Terrain', [['Grass', 't:grass'], ['Forest', 't:forest'], ['Ruins', 't:ruins'], ['House', 't:house'], ['Stalagmites / stones', 't:spikes'], ['Water', 't:water'], ['Lava', 't:lava'], ['Rock', 't:rock']]],
   ['Height', [['0', 'e:0'], ['1', 'e:1'], ['2', 'e:2'], ['3', 'e:3']]],
   ['Markers (click to place or remove)', [['Blue spawn', 'spawn:0'], ['Red spawn', 'spawn:1'], ['Neutral monster', 'spawn:2'], ['Control point', 'objective']]],
   ['Board shape', [['Add hex', 'add'], ['Remove hex', 'remove']]],
@@ -1094,6 +1096,7 @@ $('rand').addEventListener('click', () => {
   useRandomMap();
 });
 $('seed').addEventListener('change', () => { if (!custom) newGame(); });
+$('fogView').addEventListener('change', () => { sel = reach = null; refresh(); });
 $('size').addEventListener('change', () => { if (!custom) newGame(); });
 for (const id of ['fog', 'counters', 'zoc', 'mode', 'dragons', 'monsters', 'wild']) $(id).addEventListener('change', () => { if (!editing) newGame(); });
 window.addEventListener('pointerdown', unlock);

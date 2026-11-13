@@ -1,6 +1,7 @@
 // 2.5D canvas renderer: hexes are drawn as prisms, back row first, so height reads naturally.
 import { CLASSES, footprint, isBig } from './engine.js';
 import { key, DIRS, hexRound } from './hex.js';
+import { houseLayout } from './paint.js';
 
 // Two views share this code. Top-down (flat): undistorted hexes, height shown by shade, a number
 // and contour/cliff edges. 2.5D: ground plane squashed vertically and hexes raised by elevation.
@@ -10,6 +11,7 @@ const TOP = {
   forest: ['#5b9a48', '#6ca952', '#84b65d', '#a0c06e'],
   ruins: ['#9a9a7c', '#a8a888', '#b6b694', '#c4c4a2'],
   spikes: ['#8d8f86', '#9a9c92', '#a8aa9f', '#b6b8ac'],
+  house: ['#b98a5e', '#c2946a', '#cb9e76', '#d4a882'],
   rock: ['#7d8a80', '#8a968b', '#98a397', '#a6b0a3'],
   water: ['#4a93cf', '#4a93cf', '#4a93cf', '#4a93cf'],
   lava: ['#e8641c', '#e8641c', '#e8641c', '#e8641c'],
@@ -379,6 +381,8 @@ export class Renderer {
     if (this.wxMap !== this.map || this.wxBiome !== biome) {          // new map: start the weather afresh
       this.wxMap = this.map; this.wxBiome = biome;
       this.wxLava = this.order.filter((c) => c.t === 'lava');
+      this.wxHouses = this.order.filter((c) => c.t === 'house');
+      this.wxSmoke = [];
       this.wxKind = biome === 'snow' ? 'snow' : biome === 'desert' ? 'sand' : biome === 'cave' ? (this.wxLava.length ? 'embers' : 'motes') : 'clouds';
       const R = Math.random, area = w * h, many = (n, make) => Array.from({ length: Math.round(n) }, make);
       this.wx = this.wxKind === 'snow' ? many(Math.min(320, area / 6000), () => ({ x: R() * w, y: R() * h, z: 0.4 + R() * 0.6, ph: R() * 6.3 }))
@@ -471,6 +475,31 @@ export class Renderer {
         ctx.beginPath(); ctx.arc(p.x, p.y, er, 0, 6.3); ctx.fill();
         ctx.globalAlpha = ea * 0.22;                                 // a little halo
         ctx.beginPath(); ctx.arc(p.x, p.y, er * 3, 0, 6.3); ctx.fill();
+      }
+    }
+    // Chimney smoke: every house lets go of a slow puff now and then; it rises, drifts downwind,
+    // swells and thins out.
+    const houses = this.wxHouses || [];
+    if (houses.length) {
+      const SM = this.wxSmoke, S = this.S;
+      for (let n = houses.length * 1.5 * dt; n > 0 && SM.length < 420; n -= 1) {
+        if (Math.random() > n) break;
+        const c = houses[Math.floor(Math.random() * houses.length)], g = this.geo.get(key(c.q, c.r));
+        if (!g) break;
+        const lay = houseLayout(c.q, c.r);
+        SM.push({ x: g.x + lay.dx * S, y: g.y + lay.dy * S * this.sq, age: 0, life: 3.2 + Math.random() * 2.6, ph: Math.random() * 6.3 });
+      }
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = this.wxBiome === 'snow' ? '#aeb4bf' : this.wxBiome === 'cave' ? '#9a9aa0' : '#ececec';
+      for (let i = SM.length - 1; i >= 0; i--) {
+        const p = SM[i];
+        p.age += dt;
+        if (p.age >= p.life) { SM.splice(i, 1); continue; }
+        const k = p.age / p.life;
+        p.y -= S * 0.2 * (1 - k * 0.5) * dt;
+        p.x += (S * (0.08 + 0.16 * k) + Math.sin(t * 0.8 + p.ph) * S * 0.03) * dt;
+        ctx.globalAlpha = 0.38 * Math.min(1, k * 7) * Math.pow(1 - k, 1.4);
+        ctx.beginPath(); ctx.arc(p.x, p.y, S * (0.06 + 0.3 * k), 0, 6.3); ctx.fill();
       }
     }
     ctx.restore();
@@ -738,7 +767,15 @@ export class Renderer {
   decor(c, g) {
     const ctx = this.ctx, S = this.S, { x, y } = g;
     ctx.lineWidth = 1;
-    if (c.t === 'lava') {                            // bright seams in a darker crust
+    if (c.t === 'house') {                           // walls, a pitched roof and a chimney
+      const w = S * 0.5, wall = S * 0.34, top = y - S * 0.1;
+      ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillStyle = '#e4d6b8'; ctx.fillRect(x - w, top, 2 * w, wall); ctx.strokeRect(x - w, top, 2 * w, wall);
+      ctx.fillStyle = '#5b3a24'; ctx.fillRect(x + w * 0.35, top - S * 0.5, S * 0.14, S * 0.3);
+      ctx.beginPath(); ctx.moveTo(x - w * 1.15, top); ctx.lineTo(x, top - S * 0.48); ctx.lineTo(x + w * 1.15, top); ctx.closePath();
+      ctx.fillStyle = '#a8502f'; ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#4a3020'; ctx.fillRect(x - S * 0.08, top + wall * 0.35, S * 0.16, wall * 0.65);
+    } else if (c.t === 'lava') {                     // bright seams in a darker crust
       ctx.strokeStyle = 'rgba(255,225,120,0.9)'; ctx.lineWidth = 2;
       for (const [dx, dy] of [[-0.35, -0.15], [0.05, 0.12], [-0.1, -0.32]]) {
         ctx.beginPath();

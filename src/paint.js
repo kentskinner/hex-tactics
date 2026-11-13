@@ -15,6 +15,18 @@ import { key, hexRound, dist } from './hex.js';
 const R3 = Math.sqrt(3);
 const L = 4;                                    // low-res field scale
 
+// How the house on hex (q, r) sits, in units of the hex size: its turn, half-length and half-depth,
+// and where its chimney is (t along the ridge, and dx, dy from the hex centre). The painter draws
+// it from this and the game puts the chimney smoke there, so both agree.
+export function houseLayout(q, r) {
+  const h = (n) => hash(q * 3 + 11, r * 5 + 7, n);
+  const ang = (h(71) - 0.5) * 0.9 + (h(72) < 0.35 ? Math.PI / 2 : 0);
+  const w = 0.6 + h(73) * 0.12, d = 0.36 + h(74) * 0.08;
+  const t = (h(75) < 0.5 ? -1 : 1) * (0.35 + h(76) * 0.35), off = -0.28;
+  const lx = t * w, ly = off * d;
+  return { ang, w, d, t, off, dx: lx * Math.cos(ang) - ly * Math.sin(ang), dy: lx * Math.sin(ang) + ly * Math.cos(ang), thatch: h(77) < 0.4 };
+}
+
 function hash(x, y, s) {
   let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(s | 0, 1442695041);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -452,6 +464,46 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
     }
   }
 
+  }
+
+  // Houses, seen from above: a pitched roof (one slope lit, one in shade), a ridge, a chimney, and
+  // a trodden yard around it. Tiled or thatched in a meadow, snow-covered in winter, flat-roofed
+  // adobe in the desert, stone in a cave.
+  for (const c of sorted) {
+    if (c.t !== 'house') continue;
+    const [cx, cy] = centre(c);
+    const lay = houseLayout(c.q, c.r), w = lay.w * s, d = lay.d * s;
+    const yard = ctx.createRadialGradient(cx, cy, s * 0.2, cx, cy, s * 0.95);
+    yard.addColorStop(0, snow ? 'rgba(150,160,175,0.45)' : cave ? 'rgba(60,54,50,0.5)' : 'rgba(124,98,62,0.55)'); yard.addColorStop(1, 'rgba(124,98,62,0)');
+    ctx.fillStyle = yard; ctx.beginPath(); ctx.arc(cx, cy, s * 0.95, 0, 6.3); ctx.fill();
+    const roof = snow ? ['#f6f9fd', '#c2ccdb', '#8b97aa'] : desert ? ['#e2c596', '#cfae7c', '#9c7d52'] : cave ? ['#8a857f', '#57534f', '#3a3734']
+      : lay.thatch ? ['#d2b56a', '#9a7d3c', '#6d5626'] : ['#c06f45', '#853f27', '#5e2a1a'];
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(lay.ang);
+    const sx = s * 0.1 * Math.cos(-lay.ang) - s * 0.14 * Math.sin(-lay.ang), sy = s * 0.1 * Math.sin(-lay.ang) + s * 0.14 * Math.cos(-lay.ang);
+    ctx.fillStyle = 'rgba(0,0,0,0.42)'; ctx.fillRect(-w + sx, -d + sy, 2 * w, 2 * d);                 // shadow
+    ctx.fillStyle = snow ? '#6f5a48' : desert ? '#b8935f' : cave ? '#2c2a28' : '#e9dcc0';             // walls showing under the eaves
+    ctx.fillRect(-w - s * 0.035, -d - s * 0.035, 2 * w + s * 0.07, 2 * d + s * 0.07);
+    if (desert) {                                                                                     // flat roof with a parapet
+      ctx.fillStyle = roof[1]; ctx.fillRect(-w, -d, 2 * w, 2 * d);
+      ctx.fillStyle = roof[0]; ctx.fillRect(-w + s * 0.07, -d + s * 0.07, 2 * w - s * 0.14, 2 * d - s * 0.14);
+      ctx.fillStyle = 'rgba(60,40,20,0.5)'; ctx.fillRect(w * 0.25, -d * 0.45, s * 0.14, s * 0.14);      // roof hatch
+    } else {
+      ctx.fillStyle = roof[0]; ctx.fillRect(-w, -d, 2 * w, d);                                         // lit slope
+      ctx.fillStyle = roof[1]; ctx.fillRect(-w, 0, 2 * w, d);                                          // shaded slope
+      ctx.strokeStyle = 'rgba(30,18,10,0.28)'; ctx.lineWidth = 1;                                      // courses of tile or thatch
+      for (let i = 1; i < 4; i++) for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(-w, side * d * i / 4); ctx.lineTo(w, side * d * i / 4); ctx.stroke(); }
+      ctx.strokeStyle = 'rgba(30,18,10,0.14)';
+      for (let x = -w + s * 0.08; x < w; x += s * 0.085) { ctx.beginPath(); ctx.moveTo(x, -d); ctx.lineTo(x, d); ctx.stroke(); }
+      ctx.strokeStyle = roof[2]; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(-w, 0); ctx.lineTo(w, 0); ctx.stroke();   // ridge
+    }
+    ctx.strokeStyle = 'rgba(24,16,10,0.85)'; ctx.lineWidth = 1.4; ctx.strokeRect(-w, -d, 2 * w, 2 * d);
+    const cs = s * 0.075, chx = lay.t * w, chy = lay.off * d;                                          // the chimney
+    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(chx - cs + sx * 0.5, chy - cs + sy * 0.5, 2 * cs, 2 * cs);
+    ctx.fillStyle = desert ? '#8f6e44' : '#6b5a52'; ctx.fillRect(chx - cs, chy - cs, 2 * cs, 2 * cs);
+    ctx.fillStyle = '#1c1512'; ctx.fillRect(chx - cs * 0.5, chy - cs * 0.5, cs, cs);
+    ctx.strokeStyle = 'rgba(20,14,10,0.9)'; ctx.lineWidth = 1; ctx.strokeRect(chx - cs, chy - cs, 2 * cs, 2 * cs);
+    ctx.restore();
   }
 
   // Trees, back to front. A few large crowns per hex with smaller ones in the gaps; each crown

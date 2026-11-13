@@ -63,6 +63,9 @@ with a troll in each. Five control points, armies of ten.
 two-hex gate ramp behind a moat and a one-hex postern; Blue attacks with twelve and must hold the keep at the end of
 two of its turns within 20 rounds. Tuned without dragons to roughly even odds between two Plan samplers.
 
+`millbrook` is a village (337 hexes, meadow): houses along a road on both banks of a stream, a stone bridge at the
+centre and a ford above and below. Smoke rises from the chimneys when Weather is on.
+
 Four ready-made maps are included: `stonebridge` (meadow, a river with a ruined causeway),
 `frostmere` (snow, a frozen lake around an island fort) and `sunspire` (desert, a cliff-sided temple
 mesa climbed only by ramps on its north and south, with an oasis well toward each army) and `gloomhollow` (a cave: army chambers, a wide hall into a
@@ -74,7 +77,7 @@ The map file format is documented at the top of the "Map files" section in `src/
 ## Rules
 
 - Each turn, every unit may move once and then attack (or wait). Eliminate the other team; round 30 is a draw.
-- **Terrain** — forest: move cost 2, cover 1 · ruins: cover 2 · stalagmites (painted as standing stones above ground): move cost 2, cover 1, and only one-hex creatures fit among them (big ones can't stand there; flyers and burrowers may pass) · water: move cost 2, occupant takes +1 and deals -1 · lava: impassable on foot and nobody can stand in it, but it does not block sight and flyers cross it · rock: impassable, blocks sight.
+- **Terrain** — forest: move cost 2, cover 1 · ruins: cover 2 · stalagmites (painted as standing stones above ground): move cost 2, cover 1, and only one-hex creatures fit among them (big ones can't stand there; flyers and burrowers may pass) · water: move cost 2, occupant takes +1 and deals -1 · lava: impassable on foot and nobody can stand in it, but it does not block sight and flyers cross it · house: move cost 2, cover 2, one-hex creatures only, and it blocks sight lines that pass through it · rock: impassable, blocks sight.
 - **Height** (0–3) — climbing costs +1 move, a 2-level step is a cliff. Attacks get +1 damage per level above the target (-1 per level below, max 2). Archers get +1 range from high ground. Hills block line of sight.
 - **Objective** — *Eliminate* (default), or *Hold the points*: the map has control points (ringed, with a
   pennant). At the end of each team's turn, a point with a unit standing on it goes to that unit's team and
@@ -161,6 +164,8 @@ Tick "Fog of war" in the sidebar, or pass `--fog` to the arena.
   from higher ground) that the unit has a clear sight line to. Vision is shared across the team.
 - Units standing in forest stay hidden, and can't be targeted, until an enemy is adjacent.
 - A move that runs into a hidden enemy stops short of it (an ambush). Undo is disabled.
+- "Fog view" in the sidebar picks whose eyes the screen shows: Auto, Blue's, Red's or everything. Use it with two
+  AIs playing to watch what one side knows, including its last-seen markers.
 - The screen shows the human player's view, with faded "?" tokens where enemies were last seen.
   With two AIs playing, you see everything.
 
