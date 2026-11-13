@@ -898,6 +898,8 @@ async function paintFromTerrain() {
   // Big boards are painted a little coarser so the image stays a reasonable size (about 4500 px wide at most).
   const xs = Object.values(state.map.cells).map((c) => c.q + c.r / 2);
   const hexPx = Math.max(90, Math.min(140, Math.round(4500 / (Math.max(...xs) - Math.min(...xs) + 2))));
+  state.map.biome = $('bgBiome').value;                  // remembered with the map: it picks the weather
+  if (custom) custom.biome = state.map.biome;
   const art = paintBackdrop(state.map, { hexPx, seed: 7 + Object.keys(state.map.cells).length, biome: $('bgBiome').value });
   const blob = await new Promise((res) => art.canvas.toBlob(res, 'image/jpeg', 0.92));
   R.backdrop = { img: art.canvas, blob, file: null, hexPx: art.hexPx, ox: art.ox, oy: art.oy };
@@ -1093,6 +1095,9 @@ window.addEventListener('keydown', unlock);
 $('sound').checked = store('sound') !== 'off';
 $('grid').value = store('grid') ?? 1;
 R.grid = +$('grid').value;
+$('weather').checked = store('weather') !== 'off';
+R.weather = $('weather').checked;
+$('weather').addEventListener('change', (ev) => { R.weather = ev.target.checked; store('weather', R.weather ? 'on' : 'off'); });
 $('edges').checked = store('edges') !== 'off';
 R.edges = $('edges').checked;
 $('edges').addEventListener('change', (ev) => { R.edges = ev.target.checked; store('edges', R.edges ? 'on' : 'off'); });

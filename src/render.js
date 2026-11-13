@@ -255,6 +255,7 @@ export class Renderer {
     }
     if (ui.sight) this.sight(ui.sight);
     if (ui.fx?.length) this.effects(ui, state);
+    if (this.weather !== false) this.drawWeather();
 
     const now = performance.now();
     ctx.textAlign = 'center';
@@ -368,6 +369,99 @@ export class Renderer {
   //   flash  {at, color}       brief burst on the target
   //   sparks {at, color, bits} flying particles
   //   death  {unit}            the fallen unit shrinks and fades
+  // Decorative weather, picked by the map's biome: snowfall, blowing sand, cloud shadows and
+  // pollen over meadows, embers rising from lava, dust motes in other caves. Screen-space
+  // particles, a few hundred at most, so the cost is negligible.
+  drawWeather() {
+    const ctx = this.ctx, w = this.w, h = this.h, now = performance.now();
+    const dt = Math.min(0.05, (now - (this.wxT || now)) / 1000);
+    this.wxT = now;
+    const biome = this.map.biome || 'meadow';
+    if (this.wxMap !== this.map || this.wxBiome !== biome) {          // new map: start the weather afresh
+      this.wxMap = this.map; this.wxBiome = biome;
+      this.wxLava = this.order.filter((c) => c.t === 'lava');
+      this.wxKind = biome === 'snow' ? 'snow' : biome === 'desert' ? 'sand' : biome === 'cave' ? (this.wxLava.length ? 'embers' : 'motes') : 'clouds';
+      const R = Math.random, area = w * h, many = (n, make) => Array.from({ length: Math.round(n) }, make);
+      this.wx = this.wxKind === 'snow' ? many(Math.min(320, area / 6000), () => ({ x: R() * w, y: R() * h, z: 0.4 + R() * 0.6, ph: R() * 6.3 }))
+        : this.wxKind === 'sand' ? many(Math.min(140, area / 12000), () => ({ x: R() * w, y: R() * h, z: 0.5 + R() * 0.5, len: 14 + R() * 30 }))
+        : this.wxKind === 'motes' ? many(Math.min(70, area / 22000), () => ({ x: R() * w, y: R() * h, z: 0.4 + R() * 0.6, ph: R() * 6.3, hue: R() }))
+        : this.wxKind === 'clouds' ? [...many(5, () => ({ cloud: true, x: R() * w, y: R() * h, r: 160 + R() * 240 })), ...many(Math.min(40, area / 40000), () => ({ x: R() * w, y: R() * h, z: 0.4 + R() * 0.6, ph: R() * 6.3 }))]
+        : [];
+    }
+    const P = this.wx, t = now / 1000;
+    ctx.save();
+    if (this.wxKind === 'snow') {
+      ctx.fillStyle = '#ffffff';
+      for (const p of P) {
+        p.y += (26 + 44 * p.z) * dt; p.x += (10 + Math.sin(t * 0.9 + p.ph) * 16) * p.z * dt;
+        if (p.y > h + 4) { p.y = -4; p.x = Math.random() * w; }
+        if (p.x > w + 4) p.x = -4;
+        const fr = 1 + 2.1 * p.z;
+        ctx.globalAlpha = 0.22 * p.z; ctx.fillStyle = '#35507a';          // a soft shadow, so flakes show against snow
+        ctx.beginPath(); ctx.arc(p.x + fr, p.y + fr * 1.4, fr, 0, 6.3); ctx.fill();
+        ctx.globalAlpha = 0.5 + 0.5 * p.z; ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(p.x, p.y, fr, 0, 6.3); ctx.fill();
+      }
+    } else if (this.wxKind === 'sand') {
+      const gust = 0.55 + 0.45 * Math.sin(t * 0.35);                 // the wind rises and falls
+      ctx.strokeStyle = '#f6e3b8'; ctx.lineCap = 'round';
+      for (const p of P) {
+        p.x += (240 + 260 * p.z) * (0.5 + gust * 0.5) * dt; p.y += (18 + Math.sin(t + p.len) * 14) * dt;
+        if (p.x > w + 40) { p.x = -40; p.y = Math.random() * h; }
+        if (p.y > h) p.y = 0;
+        ctx.globalAlpha = (0.18 + 0.3 * p.z) * (0.4 + 0.6 * gust); ctx.lineWidth = 1 + p.z;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.len * (0.6 + gust), p.y - p.len * 0.07); ctx.stroke();
+      }
+    } else if (this.wxKind === 'motes') {                             // slow dust and spores, faintly glowing
+      for (const p of P) {
+        p.x += Math.sin(t * 0.3 + p.ph) * 7 * dt; p.y -= (3 + 6 * p.z) * dt;
+        if (p.y < -4) { p.y = h + 4; p.x = Math.random() * w; }
+        ctx.globalAlpha = (0.2 + 0.3 * p.z) * (0.6 + 0.4 * Math.sin(t * 1.3 + p.ph));
+        ctx.fillStyle = p.hue < 0.6 ? '#9ff5e6' : p.hue < 0.85 ? '#c9b0ff' : '#e9e2d2';
+        ctx.beginPath(); ctx.arc(p.x, p.y, 0.8 + 1.4 * p.z, 0, 6.3); ctx.fill();
+      }
+    } else if (this.wxKind === 'clouds') {
+      for (const p of P) {
+        if (p.cloud) {                                               // a cloud's shadow sliding over the land
+          p.x += 14 * dt; p.y += 5 * dt;
+          if (p.x - p.r > w) { p.x = -p.r; p.y = Math.random() * h; }
+          if (p.y - p.r > h) p.y = -p.r;
+          const g = ctx.createRadialGradient(p.x, p.y, p.r * 0.2, p.x, p.y, p.r);
+          g.addColorStop(0, 'rgba(10,20,30,0.16)'); g.addColorStop(1, 'rgba(10,20,30,0)');
+          ctx.globalAlpha = 1; ctx.fillStyle = g;
+          ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r * 0.7, 0, 0, 6.3); ctx.fill();
+        } else {                                                     // pollen on the breeze
+          p.x += (12 + 10 * p.z + Math.sin(t * 0.7 + p.ph) * 8) * dt; p.y += Math.sin(t * 0.5 + p.ph) * 6 * dt;
+          if (p.x > w + 4) { p.x = -4; p.y = Math.random() * h; }
+          ctx.globalAlpha = 0.25 + 0.35 * p.z; ctx.fillStyle = '#fff8d8';
+          ctx.beginPath(); ctx.arc(p.x, p.y, 0.7 + 1.1 * p.z, 0, 6.3); ctx.fill();
+        }
+      }
+    } else if (this.wxKind === 'embers') {                            // sparks rising from the lava
+      const want = Math.min(220, this.wxLava.length * 6);
+      for (let i = 0; i < 4 && P.length < want; i++) {
+        const c = this.wxLava[Math.floor(Math.random() * this.wxLava.length)], g = this.geo.get(key(c.q, c.r));
+        if (!g) break;
+        P.push({ x: g.x + (Math.random() - 0.5) * this.S * 1.5, y: g.y + (Math.random() - 0.5) * this.S * 1.2, age: 0, life: 2 + Math.random() * 3, vy: 18 + Math.random() * 40, ph: Math.random() * 6.3, z: 0.4 + Math.random() * 0.6 });
+      }
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = P.length - 1; i >= 0; i--) {
+        const p = P[i];
+        p.age += dt;
+        if (p.age >= p.life) { P.splice(i, 1); continue; }
+        p.y -= p.vy * dt; p.x += Math.sin(t * 2 + p.ph) * 12 * dt;
+        const k = p.age / p.life;
+        ctx.globalAlpha = (k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85) * 0.9;
+        ctx.fillStyle = k < 0.4 ? '#ffe9a0' : k < 0.7 ? '#ff9a3c' : '#e0401c';
+        const er = (1.3 + 2.1 * p.z) * (1 - k * 0.5), ea = ctx.globalAlpha;
+        ctx.beginPath(); ctx.arc(p.x, p.y, er, 0, 6.3); ctx.fill();
+        ctx.globalAlpha = ea * 0.22;                                 // a little halo
+        ctx.beginPath(); ctx.arc(p.x, p.y, er * 3, 0, 6.3); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
   effects(ui, state) {
     const ctx = this.ctx, S = this.S, now = performance.now(), lift = this.flat ? 0 : S * 0.45;
     const P = (h) => { const c = this.centre(h); return c ? [c.x, c.y - lift] : null; };

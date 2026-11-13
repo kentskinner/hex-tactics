@@ -13,6 +13,10 @@ archer selected, hovering an enemy draws the sight line and marks what blocks it
 **Display** — "Grid lines" fades the hex grid; "Height edges" switches off the dark slope and cliff lines of the
 top-down view (the height numbers stay).
 
+**Weather** — decorative only, picked by the map's art style (saved in the map file as `biome`): snowfall, blowing
+sand, cloud shadows and pollen over meadows, embers rising from lava, dust motes in other caves. "Weather" in the
+sidebar switches it off.
+
 **Zoom and pan** — mouse wheel zooms on the cursor; drag with the right or middle button (or hold Space and
 drag) to pan; arrow keys pan, `+` / `-` zoom, `0` or the Fit button shows the whole map again.
 
@@ -50,6 +54,10 @@ an obelisk ring north and south, and two neutral sand worms. Five control points
 
 `emberflow` is a lava tube (337 hexes, ceiling): one broad tunnel between the armies with a river of lava across it,
 crossed on foot only by a wide basalt bridge in the middle and a narrow span to the north and south.
+
+`whitefall` is a vast snowfield (839 hexes): a ruined keep on the central hill, a frozen lake with an island shrine on
+each side, a watchtower north and south each held by a neutral ogre, mountain ridges, pine belts and two cairn rings
+with a troll in each. Five control points, armies of ten.
 
 Four ready-made maps are included: `stonebridge` (meadow, a river with a ruined causeway),
 `frostmere` (snow, a frozen lake around an island fort) and `sunspire` (desert, a cliff-sided temple
