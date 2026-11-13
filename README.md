@@ -179,3 +179,7 @@ action at a time.
 - `src/ai/` — AIs
 - `src/render.js`, `src/main.js` — canvas renderer and browser UI
 - `arena.js` — tournament runner
+
+## Licence
+
+MIT — see `LICENSE`.
