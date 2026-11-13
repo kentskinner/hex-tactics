@@ -465,7 +465,7 @@ export class Renderer {
           for (const [dx, dy, k] of p.puffs) {                       // a few overlapping puffs make one cloud
             const cx = p.x + dx * p.r, cy = p.y + dy * p.r, rr = p.r * k;
             const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
-            g.addColorStop(0, 'rgba(8,16,28,0.2)'); g.addColorStop(0.55, 'rgba(8,16,28,0.15)'); g.addColorStop(1, 'rgba(8,16,28,0)');
+            g.addColorStop(0, 'rgba(8,16,28,0.12)'); g.addColorStop(0.55, 'rgba(8,16,28,0.09)'); g.addColorStop(1, 'rgba(8,16,28,0)');
             ctx.fillStyle = g;
             ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 6.3); ctx.fill();
           }
