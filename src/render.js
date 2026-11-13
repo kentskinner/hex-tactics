@@ -157,6 +157,12 @@ export class Renderer {
       // point (ox, oy) sits under the centre hex.
       const k = (R3 * this.S) / bd.hexPx;
       ctx.drawImage(bd.img, this.ox - bd.ox * k, this.oy - bd.oy * k, bd.img.width * k, bd.img.height * k);
+      if (this.weather !== false && this.wxKind === 'clouds') {       // shadows lie on the land, so units stay bright
+        ctx.save();
+        ctx.beginPath(); ctx.rect(this.ox - bd.ox * k, this.oy - bd.oy * k, bd.img.width * k, bd.img.height * k); ctx.clip();
+        for (const p of this.wx || []) if (p.cloud) this.cloudShadow(p);
+        ctx.restore();
+      }
     }
     const byCell = new Map();                        // every hex of every unit's footprint
     for (const u of state.units) for (const c of footprint(u)) byCell.set(key(c.q, c.r), u);
@@ -374,6 +380,19 @@ export class Renderer {
   //   flash  {at, color}       brief burst on the target
   //   sparks {at, color, bits} flying particles
   //   death  {unit}            the fallen unit shrinks and fades
+  // One cloud's shadow: a few overlapping soft puffs.
+  cloudShadow(p) {
+    const ctx = this.ctx;
+    ctx.globalAlpha = 1;
+    for (const [dx, dy, k] of p.puffs) {
+      const cx = p.x + dx * p.r, cy = p.y + dy * p.r, rr = p.r * k;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
+      g.addColorStop(0, 'rgba(8,16,28,0.18)'); g.addColorStop(0.55, 'rgba(8,16,28,0.13)'); g.addColorStop(1, 'rgba(8,16,28,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 6.3); ctx.fill();
+    }
+  }
+
   // Decorative weather, picked by the map's biome: snowfall, blowing sand, cloud shadows and
   // pollen over meadows, embers rising from lava, dust motes in other caves. Screen-space
   // particles, a few hundred at most, so the cost is negligible.
@@ -461,14 +480,7 @@ export class Renderer {
           if (p.r > 600 || p.r < 60) p.r = 150 + Math.random() * 170;      // zooming rescales them; keep them cloud-sized
           if (p.x - p.r * 2 > w || p.x + p.r * 2 < 0) { p.x = -p.r * 2; p.y = Math.random() * h; }
           if (p.y - p.r * 2 > h) p.y = -p.r * 2; else if (p.y + p.r * 2 < 0) p.y = h + p.r;
-          ctx.globalAlpha = 1;
-          for (const [dx, dy, k] of p.puffs) {                       // a few overlapping puffs make one cloud
-            const cx = p.x + dx * p.r, cy = p.y + dy * p.r, rr = p.r * k;
-            const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
-            g.addColorStop(0, 'rgba(8,16,28,0.12)'); g.addColorStop(0.55, 'rgba(8,16,28,0.09)'); g.addColorStop(1, 'rgba(8,16,28,0)');
-            ctx.fillStyle = g;
-            ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 6.3); ctx.fill();
-          }
+          if (!bd) this.cloudShadow(p);                              // no painted map to lay it under: draw it here
         } else {                                                     // pollen on the breeze
           p.x += (12 + 10 * p.z + Math.sin(t * 0.7 + p.ph) * 8) * dt; p.y += Math.sin(t * 0.5 + p.ph) * 6 * dt;
           if (p.x > w + 4 || p.x < -8) { p.x = -4; p.y = Math.random() * h; }
