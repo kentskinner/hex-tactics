@@ -10,7 +10,6 @@ const TOP = {
   forest: ['#5b9a48', '#6ca952', '#84b65d', '#a0c06e'],
   ruins: ['#9a9a7c', '#a8a888', '#b6b694', '#c4c4a2'],
   spikes: ['#8d8f86', '#9a9c92', '#a8aa9f', '#b6b8ac'],
-  stalactites: ['#6f7480', '#7b808c', '#878c98', '#9398a4'],
   rock: ['#7d8a80', '#8a968b', '#98a397', '#a6b0a3'],
   water: ['#4a93cf', '#4a93cf', '#4a93cf', '#4a93cf'],
   lava: ['#e8641c', '#e8641c', '#e8641c', '#e8641c'],
@@ -775,13 +774,6 @@ export class Renderer {
         ctx.fillStyle = '#6c6f6a'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.stroke();
         ctx.beginPath(); ctx.moveTo(tx - w, ty); ctx.lineTo(tx - w * 0.1, ty - h); ctx.lineTo(tx - w * 0.1, ty); ctx.closePath();
         ctx.fillStyle = '#b4b7ae'; ctx.fill();
-      }
-    } else if (c.t === 'stalactites') {              // hanging points, with their shadow on the floor
-      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(x, y + S * 0.15, S * 0.5, S * 0.2, 0, 0, 6.3); ctx.fill();
-      for (const [dx, k] of [[-0.42, 0.7], [-0.15, 1.1], [0.14, 0.85], [0.4, 0.6]]) {
-        const tx = x + S * dx, top = y - S * 0.75, h = S * 0.75 * k, w = S * 0.13;
-        ctx.beginPath(); ctx.moveTo(tx - w, top); ctx.lineTo(tx + w, top); ctx.lineTo(tx + w * 0.1, top + h); ctx.closePath();
-        ctx.fillStyle = '#4c505a'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.stroke();
       }
     } else if (c.t === 'rock') {
       const P = (pts, col) => {

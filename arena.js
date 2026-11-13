@@ -1,10 +1,13 @@
 // Headless AI-vs-AI tournament.
-//   node arena.js <aiA> <aiB> [--games 20] [--seed 1] [--map name-or-path] [--fog] [--no-counters] [--no-zoc] [--hold] [--dragons] [--monsters | --no-monsters] [--wild | --no-wild] [--size 6]
+//   node arena.js <aiA> <aiB> [--games 20] [--seed 1] [--map name-or-path] [--fog] [--no-counters] [--no-zoc] [--hold | --siege | --eliminate] [--dragons] [--monsters | --no-monsters] [--wild | --no-wild] [--size 6]
 // Each map is played twice with sides swapped, so first-move and terrain advantage cancel out.
 // --map uses a saved map (maps/<name>.json) for every game instead of generated ones.
 // --fog plays with fog of war: each AI is only shown what its own team can see.
 // --no-counters and --no-zoc switch off counter-attacks and zones of control.
-// --hold plays the hold-the-points objective instead of elimination.
+// --hold plays the hold-the-points objective instead of elimination; --siege plays any map as a siege
+// (Red defends). A map with its own siege settings is played as a siege unless --eliminate or --hold is given.
+// The last line reports wins by side (Blue / Red), whoever played them: with the same AI on both
+// sides, that is how lopsided the scenario is.
 // --dragons gives each side a Dragon as well.
 // --monsters gives each side the cave monsters (spider, bats, worm) on any map; --no-monsters removes
 // them from a map that has its own. Default: whatever the map says.
@@ -16,10 +19,10 @@ import { AIS } from './src/ai/index.js';
 
 const args = process.argv.slice(2);
 const opt = (name, def) => { const i = args.indexOf('--' + name); return i >= 0 ? +args[i + 1] : def; };
-const SWITCHES = ['--fog', '--no-counters', '--no-zoc', '--hold', '--dragons', '--monsters', '--no-monsters', '--wild', '--no-wild'];  // flags that take no value
+const SWITCHES = ['--fog', '--no-counters', '--no-zoc', '--hold', '--siege', '--eliminate', '--dragons', '--monsters', '--no-monsters', '--wild', '--no-wild'];  // flags that take no value
 const fog = args.includes('--fog');
 const rules = { fog, counters: !args.includes('--no-counters'), zoc: !args.includes('--no-zoc'),
-  mode: args.includes('--hold') ? 'hold' : 'eliminate', dragons: args.includes('--dragons') ? 'both' : 'none',
+  mode: args.includes('--hold') ? 'hold' : args.includes('--siege') ? 'siege' : args.includes('--eliminate') ? 'eliminate' : undefined, dragons: args.includes('--dragons') ? 'both' : 'none',
   monsters: args.includes('--no-monsters') ? [] : args.includes('--monsters') ? PACKS.cave : undefined,
   wild: args.includes('--no-wild') ? [] : args.includes('--wild') ? 'auto' : undefined };
 const [nameA, nameB] = args.filter((a, i) => !a.startsWith('--') && !((args[i - 1] || '').startsWith('--') && !SWITCHES.includes(args[i - 1])));
@@ -52,6 +55,7 @@ export function playGame(map, makers, game = 0) {
 }
 
 const score = { [nameA]: 0, [nameB]: 0, draw: 0 };
+const side = [0, 0];
 const time = [0, 0];
 let rounds = 0;
 for (let g = 0; g < games; g++) {
@@ -60,6 +64,7 @@ for (let g = 0; g < games; g++) {
   const map = mapData ? mapFromData(mapData) : generateMap(seed0 + (g >> 1), size);
   const res = playGame(map, names.map((n) => AIS[n]), g);
   score[res.winner === 'draw' ? 'draw' : names[res.winner]]++;
+  if (res.winner !== 'draw') side[res.winner]++;
   rounds += res.rounds;
   time[0] += res.ms[swap ? 1 : 0];
   time[1] += res.ms[swap ? 0 : 1];
@@ -68,3 +73,4 @@ console.log(`${games} games${fog ? ' with fog of war' : ''}, avg ${(rounds / gam
 console.log(`  ${nameA}: ${score[nameA]} wins  (${(time[0] / games).toFixed(0)} ms thinking/game)`);
 if (nameA !== nameB) console.log(`  ${nameB}: ${score[nameB]} wins  (${(time[1] / games).toFixed(0)} ms thinking/game)`);
 console.log(`  draws: ${score.draw}`);
+console.log(`  by side: Blue ${side[0]}, Red ${side[1]}`);

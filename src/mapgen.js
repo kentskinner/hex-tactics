@@ -27,6 +27,7 @@ export function generateMap(seed = 1, radius = 6) {
 //     objectives: [{q, r}],          control points for the "hold" mode (optional)
 //     wild: [{q, r, cls}],                   neutral monsters and where they lair (optional)
 //     monsters: ['spider', 'bat', 'worm'],   extra units each side gets on this map (optional)
+//     siege: { defender: 1, target: 2, rounds: 16 },   an asymmetric scenario: see createGame's 'siege' mode (optional)
 //     biome: 'meadow' | 'snow' | 'desert' | 'cave',   the art style it was painted in; picks the weather (optional)
 //     ceiling: true,                 a cave: flyers can't cross rock (optional)
 //     backdrop: { image: 'file.png', hexPx, ox, oy } | null }
@@ -38,7 +39,7 @@ export function mapFromData(d) {
   const spawns = [0, 1].map((t) => (d.spawns?.[t] || []).map((s) => ({ ...s })));
   const objectives = (d.objectives || []).map(({ q, r }) => ({ q, r }));
   return { cells, spawns, objectives, ceiling: !!d.ceiling, monsters: Array.isArray(d.monsters) ? d.monsters.slice() : null,
-    wild: (d.wild || []).map((w) => ({ ...w })), biome: d.biome || null, losCache: new Map(), seed: d.name || 'custom', name: d.name || null };
+    wild: (d.wild || []).map((w) => ({ ...w })), siege: d.siege ? { ...d.siege } : null, biome: d.biome || null, losCache: new Map(), seed: d.name || 'custom', name: d.name || null };
 }
 
 export function mapToData(map, name = null, backdrop = null) {
@@ -50,6 +51,7 @@ export function mapToData(map, name = null, backdrop = null) {
     objectives: (map.objectives || []).map(({ q, r }) => ({ q, r })),
     ceiling: !!map.ceiling,
     ...(map.biome ? { biome: map.biome } : {}),
+    ...(map.siege ? { siege: { ...map.siege } } : {}),
     ...(map.monsters ? { monsters: map.monsters.slice() } : {}),
     ...(map.wild?.length ? { wild: map.wild.map(({ q, r, cls }) => ({ q, r, cls })) } : {}),
     backdrop,

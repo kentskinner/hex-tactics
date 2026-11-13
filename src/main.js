@@ -220,14 +220,17 @@ function refresh() {
   $('undo').title = state.fog ? 'Not available under fog of war (a move may reveal enemies)' : '';
   if (state.winner !== null) {
     b.className = 'over';
-    const onPoints = state.mode === 'hold' && state.winner !== 'draw' && state.units.some((u) => u.team !== state.winner);
+    const heldOut = state.mode === 'siege' && state.winner === state.defender && state.units.some((u) => u.team !== state.winner);
+    const onPoints = (state.mode === 'hold' || state.mode === 'siege') && !heldOut && state.winner !== 'draw' && state.units.some((u) => u.team !== state.winner);
     b.textContent = state.winner === 'draw' ? 'Draw — round limit reached'
+      : heldOut ? `${TEAM[state.winner]} wins — the keep held out!`
       : `${TEAM[state.winner]} wins${onPoints ? ` on points, ${state.score[state.winner]}–${state.score[1 - state.winner]}` : ''}!`;
   } else {
     b.className = 't' + state.turn;
     const who = state.turn === E.WILD ? 'neutral monsters' : ais[state.turn] ? AIS[$('ctl' + state.turn).value].label + (thinking ? ', thinking\u2026' : '') : 'your move';
     b.textContent = `Round ${state.round}/${state.maxRounds} — ${TEAM[state.turn]} (${who})`
-      + (state.mode === 'hold' ? `  ·  Blue ${state.score[0]} – ${state.score[1]} Red, first to ${state.target}` : '');
+      + (state.mode === 'hold' ? `  ·  Blue ${state.score[0]} – ${state.score[1]} Red, first to ${state.target}` : '')
+      + (state.mode === 'siege' ? `  ·  ${TEAM[1 - state.defender]} ${state.score[1 - state.defender]}/${state.target} to take the keep · ${TEAM[state.defender]} must hold to round ${state.maxRounds}` : '');
   }
   $('info').textContent = infoText(me);
 }
@@ -275,7 +278,7 @@ function infoText(me) {
   const point = (view.objectives || []).find((o) => o.q === hover.q && o.r === hover.r);
   const tname = t.narrow && !state.map.ceiling ? 'Standing stones' : t.name;     // above ground they are menhirs
   const lines = [`${tname} · height ${c.e} · ` +
-    (t.cost === Infinity ? (c.t === 'lava' ? 'impassable on foot; flyers cross; does not block sight' : 'impassable, blocks sight') : `move cost ${t.cost} · cover ${t.cover}`) + (t.narrow ? ' · too tight for big creatures' : '') + (t.low ? ' · flyers cannot pass' : '')];
+    (t.cost === Infinity ? (c.t === 'lava' ? 'impassable on foot; flyers cross; does not block sight' : 'impassable, blocks sight') : `move cost ${t.cost} · cover ${t.cover}`) + (t.narrow ? ' · too tight for big creatures' : '')];
   if (point) {
     lines.push(`Control point — ${point.owner === null ? 'unclaimed' : 'held by ' + TEAM[point.owner]}`
       + (editing ? '' : '. End a turn standing here to take it.'));
@@ -537,7 +540,8 @@ async function perform(a) {
         state.objectives.forEach((o, i) => {
           if (state.owners[i] === ev.team) view.floats.push({ q: o.q, r: o.r, text: '+1', t0: performance.now() });
         });
-        log(`${TEAM[ev.team]} scores ${ev.scored} — Blue ${state.score[0]}, Red ${state.score[1]} (first to ${state.target})`);
+        log(state.mode === 'siege' ? `${TEAM[ev.team]} holds the keep: ${state.score[ev.team]} of ${state.target}`
+          : `${TEAM[ev.team]} scores ${ev.scored} — Blue ${state.score[0]}, Red ${state.score[1]} (first to ${state.target})`);
       }
       if (ev.captured.length || ev.scored) await sleep(350 / speed());
     }
@@ -662,6 +666,8 @@ async function openSavedMap(name) {
   }
   custom = data;
   R.backdrop = bd;
+  // A siege map is played as a siege; leaving one goes back to plain elimination.
+  if (data.siege) $('mode').value = 'siege'; else if ($('mode').value === 'siege') $('mode').value = 'eliminate';
   setOverlay(data.backdrop?.overlay ?? 0.4);
   if (bd) setView(true);
   store('map', name);
@@ -694,7 +700,7 @@ $('mapSel').addEventListener('change', (ev) => {
 // ---- Editor ----
 
 const BRUSHES = [
-  ['Terrain', [['Grass', 't:grass'], ['Forest', 't:forest'], ['Ruins', 't:ruins'], ['Stalagmites / stones', 't:spikes'], ['Stalactites', 't:stalactites'], ['Water', 't:water'], ['Lava', 't:lava'], ['Rock', 't:rock']]],
+  ['Terrain', [['Grass', 't:grass'], ['Forest', 't:forest'], ['Ruins', 't:ruins'], ['Stalagmites / stones', 't:spikes'], ['Water', 't:water'], ['Lava', 't:lava'], ['Rock', 't:rock']]],
   ['Height', [['0', 'e:0'], ['1', 'e:1'], ['2', 'e:2'], ['3', 'e:3']]],
   ['Markers (click to place or remove)', [['Blue spawn', 'spawn:0'], ['Red spawn', 'spawn:1'], ['Neutral monster', 'spawn:2'], ['Control point', 'objective']]],
   ['Board shape', [['Add hex', 'add'], ['Remove hex', 'remove']]],

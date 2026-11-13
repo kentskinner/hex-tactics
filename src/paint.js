@@ -454,33 +454,6 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
 
   }
 
-  // Stalactites: points hanging from the roof, seen from above — a dark patch of ceiling at the
-  // top of the hex with spikes dropping from it toward the viewer, and their shadow on the floor.
-  for (const c of sorted) {
-    if (c.t !== 'stalactites') continue;
-    const [cx, cy] = centre(c);
-    const sh = ctx.createRadialGradient(cx, cy + s * 0.25, s * 0.05, cx, cy + s * 0.25, s * 0.8);
-    sh.addColorStop(0, 'rgba(0,0,0,0.42)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = sh; ctx.beginPath(); ctx.ellipse(cx, cy + s * 0.25, s * 0.8, s * 0.5, 0, 0, 6.3); ctx.fill();
-    const hang = [];
-    for (let i = 0, n = 7 + Math.floor(rnd() * 3); i < n; i++) hang.push([cx + (rnd() - 0.5) * s * 1.25, cy - s * (0.62 - rnd() * 0.5), s * (0.07 + rnd() * 0.07), s * (0.35 + rnd() * 0.5)]);
-    hang.sort((p, q) => p[1] - q[1]);
-    ctx.fillStyle = 'rgba(14,13,18,0.82)';                        // the ceiling they hang from
-    ctx.beginPath(); ctx.ellipse(cx, cy - s * 0.5, s * 0.78, s * 0.3, 0, 0, 6.3); ctx.fill();
-    for (const [x, y, w, h] of hang) {
-      const tipX = x + (rnd() - 0.5) * w, tipY = y + h;
-      ctx.fillStyle = 'rgb(46,42,48)';                            // shaded side
-      ctx.beginPath(); ctx.moveTo(x, y - w * 0.3); ctx.lineTo(x + w, y); ctx.lineTo(tipX, tipY); ctx.closePath(); ctx.fill();
-      const lit = ctx.createLinearGradient(x, y, tipX, tipY);
-      lit.addColorStop(0, 'rgb(92,84,86)'); lit.addColorStop(1, 'rgb(196,186,172)');
-      ctx.fillStyle = lit;                                        // lit side, palest at the wet tip
-      ctx.beginPath(); ctx.moveTo(x - w, y); ctx.lineTo(x, y - w * 0.3); ctx.lineTo(tipX, tipY); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = 'rgba(8,6,10,0.85)'; ctx.lineWidth = 1.2; ctx.lineJoin = 'round';
-      ctx.beginPath(); ctx.moveTo(x - w, y); ctx.lineTo(tipX, tipY); ctx.lineTo(x + w, y); ctx.stroke();
-      ctx.fillStyle = 'rgba(190,235,255,0.85)'; ctx.beginPath(); ctx.arc(tipX, tipY + 1.5, Math.max(1, w * 0.16), 0, 6.3); ctx.fill();   // a drip
-    }
-  }
-
   // Trees, back to front. A few large crowns per hex with smaller ones in the gaps; each crown
   // is built from overlapping leaf clumps, darkest at the bottom-right and lightest top-left.
   const trees = [];

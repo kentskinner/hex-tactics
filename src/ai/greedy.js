@@ -27,7 +27,7 @@ function scoreOption(state, u, o, enemies, field) {
     }
     s -= spell.cooldown * 2;                                          // don't burn a long cooldown for a marginal gain
   }
-  if (state.mode === 'hold') {                                        // ending the turn on a point we don't own takes it
+  if (state.mode === 'hold' || state.mode === 'siege') {              // ending the turn on a point we don't own takes it
     const on = footprint(u, o);                                       // big creatures hold a point with any hex
     const i = state.objectives.findIndex((p) => on.some((c) => c.q === p.q && c.r === p.r));
     if (i >= 0 && state.owners[i] !== u.team) s += state.owners[i] === null ? 30 : 42;
@@ -43,10 +43,17 @@ function scoreOption(state, u, o, enemies, field) {
 export function bestAction(state, noise = 0, rng = Math.random, goals = []) {
   const enemies = state.units.filter((u) => u.team !== state.turn);
   // Advance on enemies, on fog goals, and on any control point that isn't ours yet.
-  const points = state.mode === 'hold' ? state.objectives.filter((p, i) => state.owners[i] !== state.turn) : [];
+  const pointMode = state.mode === 'hold' || state.mode === 'siege';
+  const points = pointMode ? state.objectives.filter((p, i) => state.owners[i] !== state.turn) : [];
   // Neutral monsters are fought when they are in the way, but not marched on.
-  const foes = enemies.filter((u) => u.team === 1 - state.turn);
-  const toward = [...foes, ...goals, ...points];
+  let foes = enemies.filter((u) => u.team === 1 - state.turn);
+  let home = [];
+  if (state.mode === 'siege' && state.turn === state.defender) {
+    // Defending: stay by the keep and meet whoever comes within reach of it, rather than marching out.
+    home = state.objectives;
+    foes = foes.filter((u) => state.objectives.some((p) => dist(p, u) <= 5));
+  }
+  const toward = [...foes, ...goals, ...points, ...(foes.length ? [] : home)];
   const field = distanceField(state.map, toward.length ? toward : enemies);
   const cands = [];
   for (const u of state.units) {

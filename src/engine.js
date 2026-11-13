@@ -26,8 +26,6 @@ export const TERRAIN = {
   water:  { name: 'Water',  cost: 2, cover: -1 },         // difficult, exposed, weakens attacks
   // narrow: only one-hex creatures fit between them. Big ones can't stand there (flyers and burrowers may pass).
   spikes: { name: 'Stalagmites', cost: 2, cover: 1, narrow: true },
-  // low: spikes hang from the roof. Walkers pass underneath as on open ground; flyers can't get through.
-  stalactites: { name: 'Stalactites', cost: 1, cover: 0, low: true },
   // Lava: nobody can stand in it or walk through it, but it doesn't block sight, and flyers cross it
   // (even under a cave ceiling). Burrowers pass beneath.
   lava:   { name: 'Lava',   cost: Infinity, cover: 0 },
@@ -80,7 +78,7 @@ const glides = (cls) => !!(CLASSES[cls].fly || CLASSES[cls].burrow);
 // Can such a unit pass with its body over these hexes? Off-board never; rock stops a flyer under a ceiling.
 const canGlide = (map, cls, hexes) => hexes.every((h) => {
   const c = map.cells[key(h.q, h.r)];
-  return c && (CLASSES[cls].burrow || !(TERRAIN[c.t].low || (map.ceiling && c.t === 'rock')));
+  return c && (CLASSES[cls].burrow || !(map.ceiling && c.t === 'rock'));
 });
 
 // ---- Creature sizes ----
@@ -127,7 +125,7 @@ export function fits(state, unit, at = unit) {
   let lo = Infinity, hi = -Infinity;
   for (const c of footprint(unit, at)) {
     const cell = state.map.cells[key(c.q, c.r)];
-    if (!cell || impassable(cell) || (TERRAIN[cell.t].narrow && isBig(unit)) || (TERRAIN[cell.t].low && CLASSES[unit.cls].fly)) return false;
+    if (!cell || impassable(cell) || (TERRAIN[cell.t].narrow && isBig(unit))) return false;
     const other = unitAt(state, c);
     if (other && other.id !== unit.id) return false;
     lo = Math.min(lo, cell.e); hi = Math.max(hi, cell.e);
@@ -139,12 +137,21 @@ export function fits(state, unit, at = unit) {
 // zoc (melee units stop enemies that step next to them).
 //
 // mode: 'eliminate' (default) — destroy the other team.
+//       'siege' — asymmetric. One team defends (map.siege.defender, default 1 = Red) and starts
+//       owning the map's control points (the keep). Points change hands as in 'hold', but only the
+//       attacker scores: 1 per point it owns at the end of each of its turns. The attacker wins on
+//       reaching `target` (map.siege.target, default 2) or by wiping the defenders out; the defender
+//       wins by wiping the attackers out or by lasting to the round limit (map.siege.rounds).
+//       A map that has a `siege` entry is played this way unless another mode is asked for.
 //       'hold' — control points. At the end of each team's turn, any point with a unit standing on
 //       it goes to that unit's team and stays theirs until an enemy stands on it; the team whose
 //       turn is ending then scores 1 per point it owns. First to `target` wins (default 2 per
 //       point); wiping the enemy out still wins too. Points come from map.objectives, or are
 //       placed automatically along the line where the two armies meet.
-export function createGame(map, { maxRounds = 0, fog = false, counters = true, zoc = true, mode = 'eliminate', target = 0, dragons = 'none', monsters, wild } = {}) {
+export function createGame(map, { maxRounds = 0, fog = false, counters = true, zoc = true, mode, target = 0, dragons = 'none', monsters, wild } = {}) {
+  if (!mode) mode = map.siege ? 'siege' : 'eliminate';
+  const siege = mode === 'siege' ? { defender: 1, target: 2, ...(map.siege || {}) } : null;
+  if (!maxRounds && siege?.rounds) maxRounds = siege.rounds;
   if (!maxRounds) {                                // 30, or longer when the armies start far apart
     const mid = (t, a) => map.spawns[t].reduce((sum, p) => sum + p[a], 0) / Math.max(1, map.spawns[t].length);
     const apart = dist(hexRound(mid(0, 'q'), mid(0, 'r')), hexRound(mid(1, 'q'), mid(1, 'r')));
@@ -225,14 +232,16 @@ export function createGame(map, { maxRounds = 0, fog = false, counters = true, z
   }
   for (const u of units) if (u.team === WILD) { u.hq = u.q; u.hr = u.r; }     // home: the middle of its territory
   let objectives = [];
-  if (mode === 'hold') {
+  if (mode === 'hold' || siege) {
     const placed = (map.objectives || []).filter((o) => { const c = cellAt(map, o); return c && !impassable(c); });
     objectives = placed.length ? placed : defaultObjectives(map);
+    if (siege && !placed.length) objectives = objectives.slice(0, 1);
   }
   // roster: both starting line-ups (public knowledge, even under fog).
   const roster = units.map(({ id, team, cls, q, r, o }) => ({ id, team, cls, q, r, o }));
   return { map, units, roster, turn: 0, round: 1, winner: null, maxRounds, fog, counters, zoc,
-    mode, objectives, owners: objectives.map(() => null), score: [0, 0], target: target || 2 * objectives.length };
+    mode, objectives, owners: objectives.map(() => (siege ? siege.defender : null)), score: [0, 0],
+    defender: siege ? siege.defender : null, target: target || (siege ? siege.target : 2 * objectives.length) };
 }
 
 export const clone = (s) => ({ ...s, units: s.units.map((u) => ({ ...u })), owners: s.owners.slice(), score: s.score.slice() });
@@ -773,16 +782,17 @@ export function applyAction(state, a) {
   if (a.type === 'endTurn') {
     let ev = null;
     const ending = state.turn;
-    if (state.mode === 'hold' && ending === WILD) {      // a monster squatting on a point makes it nobody's
+    const points = state.mode === 'hold' || state.mode === 'siege';
+    if (points && ending === WILD) {      // a monster squatting on a point makes it nobody's
       state.objectives.forEach((o, i) => { if (unitAt(state, o)?.team === WILD) state.owners[i] = null; });
-    } else if (state.mode === 'hold') {          // returns {team, captured: [{i, team}], scored}
+    } else if (points) {                         // returns {team, captured: [{i, team}], scored}
       ev = { team: state.turn, captured: [], scored: 0 };
       state.objectives.forEach((o, i) => {
         const holder = unitAt(state, o);
         if (holder && holder.team === WILD) state.owners[i] = null;
         else if (holder && state.owners[i] !== holder.team) { state.owners[i] = holder.team; ev.captured.push({ i, team: holder.team }); }
       });
-      ev.scored = state.owners.filter((o) => o === state.turn).length;
+      ev.scored = state.turn === state.defender ? 0 : state.owners.filter((o) => o === state.turn).length;   // in a siege only the attacker scores
       state.score[state.turn] += ev.scored;
       if (state.score[state.turn] >= state.target) { state.winner = state.turn; return ev; }
     }
@@ -797,6 +807,7 @@ export function applyAction(state, a) {
       if (CLASSES[u.cls].regen) u.hp = Math.min(CLASSES[u.cls].hp, u.hp + CLASSES[u.cls].regen);
     }
     if (state.round > state.maxRounds) {         // out of time: on points if there are any, else a draw
+      if (state.mode === 'siege') { state.winner = state.defender; return ev; }      // the keep held out
       const [s0, s1] = state.score;
       state.winner = s0 > s1 ? 0 : s1 > s0 ? 1 : 'draw';
     }
@@ -912,7 +923,10 @@ export function evaluate(state, team) {
   let v = 0;
   for (const u of state.units) v += (u.team === team ? 1 : u.team === WILD ? -0.25 : -1) * (4 + 6 * u.hp / CLASSES[u.cls].hp) * (CLASSES[u.cls].value || 1);
   if (state.unseen) v += (state.observer === team ? -1 : 1) * state.unseen * 8;   // enemies we can't see still count
-  if (state.mode === 'hold') {                   // points on the board, and points already banked
+  if (state.mode === 'siege') {                  // the attacker wants points and has a clock against it
+    const att = 1 - state.defender, side = team === att ? 1 : -1;
+    v += side * (state.score[att] * 12 + state.owners.filter((o) => o === att).length * 8 - 14 * state.round / state.maxRounds);
+  } else if (state.mode === 'hold') {            // points on the board, and points already banked
     v += (state.score[team] - state.score[1 - team]) * 5;
     for (const o of state.owners) v += o === team ? 4 : o === 1 - team ? -4 : 0;
   }

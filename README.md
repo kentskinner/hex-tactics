@@ -59,6 +59,10 @@ crossed on foot only by a wide basalt bridge in the middle and a narrow span to 
 each side, a watchtower north and south each held by a neutral ogre, mountain ridges, pine belts and two cairn rings
 with a troll in each. Five control points, armies of ten.
 
+`stonewatch` is the siege scenario (345 hexes, meadow): Red's five hold a cliff-sided hill fort with battlements, a
+two-hex gate ramp behind a moat and a one-hex postern; Blue attacks with twelve and must hold the keep at the end of
+two of its turns within 20 rounds. Tuned without dragons to roughly even odds between two Plan samplers.
+
 Four ready-made maps are included: `stonebridge` (meadow, a river with a ruined causeway),
 `frostmere` (snow, a frozen lake around an island fort) and `sunspire` (desert, a cliff-sided temple
 mesa climbed only by ramps on its north and south, with an oasis well toward each army) and `gloomhollow` (a cave: army chambers, a wide hall into a
@@ -70,7 +74,7 @@ The map file format is documented at the top of the "Map files" section in `src/
 ## Rules
 
 - Each turn, every unit may move once and then attack (or wait). Eliminate the other team; round 30 is a draw.
-- **Terrain** — forest: move cost 2, cover 1 · ruins: cover 2 · stalagmites (painted as standing stones above ground): move cost 2, cover 1, and only one-hex creatures fit among them (big ones can't stand there; flyers and burrowers may pass) · water: move cost 2, occupant takes +1 and deals -1 · stalactites: open ground for walkers, but flyers can't pass or land · lava: impassable on foot and nobody can stand in it, but it does not block sight and flyers cross it · rock: impassable, blocks sight.
+- **Terrain** — forest: move cost 2, cover 1 · ruins: cover 2 · stalagmites (painted as standing stones above ground): move cost 2, cover 1, and only one-hex creatures fit among them (big ones can't stand there; flyers and burrowers may pass) · water: move cost 2, occupant takes +1 and deals -1 · lava: impassable on foot and nobody can stand in it, but it does not block sight and flyers cross it · rock: impassable, blocks sight.
 - **Height** (0–3) — climbing costs +1 move, a 2-level step is a cliff. Attacks get +1 damage per level above the target (-1 per level below, max 2). Archers get +1 range from high ground. Hills block line of sight.
 - **Objective** — *Eliminate* (default), or *Hold the points*: the map has control points (ringed, with a
   pennant). At the end of each team's turn, a point with a unit standing on it goes to that unit's team and
@@ -78,6 +82,14 @@ The map file format is documented at the top of the "Map files" section in `src/
   First to 2 per point wins (6 with three points), as does wiping the enemy out; at the round limit the
   higher score wins. Maps can place their own points (editor: Markers → Control point); otherwise three are
   placed along the line where the armies meet. Arena: `--hold`.
+- **Siege** (asymmetric) — one side defends and starts owning the map's control points (the keep). Points change hands
+  as in Hold the points, but only the attacker scores: 1 per point it owns at the end of each of its turns. The attacker
+  wins on reaching the target (default 2) or by wiping the defenders out; the defender wins by wiping the attackers out
+  or by lasting to the round limit. A map sets it up with `"siege": { "defender": 1, "target": 2, "rounds": 20 }` and is
+  then played as a siege by default; "Siege (Red defends)" in the sidebar or `--siege` in the arena plays any map that way.
+  Maps and armies need not be symmetric: every spawn can name its class. The arena's last line reports wins by side, so
+  running one AI against itself (`node arena.js sampler sampler --map stonewatch`) shows how lopsided a scenario is.
+  `evaluate` and Greedy know the mode: the attacker is on a clock, and a Greedy defender stays by the keep.
 - **Damage** is deterministic: `atk + height - cover`, minimum 1. No hit rolls.
 - **Counter-attacks** — a unit that survives an attack hits back with its own attack if the attacker is
   within its range and sight (so melee answers melee, archers answer shots from 2+ hexes, and an archer
