@@ -1,7 +1,7 @@
 // 2.5D canvas renderer: hexes are drawn as prisms, back row first, so height reads naturally.
 import { CLASSES, footprint, isBig } from './engine.js';
 import { key, DIRS, hexRound } from './hex.js';
-import { houseLayout } from './paint.js';
+import { buildings } from './paint.js';
 
 // Two views share this code. Top-down (flat): undistorted hexes, height shown by shade, a number
 // and contour/cliff edges. 2.5D: ground plane squashed vertically and hexes raised by elevation.
@@ -11,6 +11,7 @@ const TOP = {
   forest: ['#5b9a48', '#6ca952', '#84b65d', '#a0c06e'],
   ruins: ['#9a9a7c', '#a8a888', '#b6b694', '#c4c4a2'],
   spikes: ['#8d8f86', '#9a9c92', '#a8aa9f', '#b6b8ac'],
+  road: ['#b9a070', '#c2aa7c', '#cbb488', '#d4be94'],
   house: ['#b98a5e', '#c2946a', '#cb9e76', '#d4a882'],
   rock: ['#7d8a80', '#8a968b', '#98a397', '#a6b0a3'],
   water: ['#4a93cf', '#4a93cf', '#4a93cf', '#4a93cf'],
@@ -381,7 +382,7 @@ export class Renderer {
     if (this.wxMap !== this.map || this.wxBiome !== biome) {          // new map: start the weather afresh
       this.wxMap = this.map; this.wxBiome = biome;
       this.wxLava = this.order.filter((c) => c.t === 'lava');
-      this.wxHouses = this.order.filter((c) => c.t === 'house');
+      this.wxHouses = buildings(this.order).flatMap((b) => b.chim.map((ch) => ({ cells: b.cells, dx: ch.dx, dy: ch.dy })));   // one entry per chimney
       this.wxSmoke = [];
       this.wxKind = biome === 'snow' ? 'snow' : biome === 'desert' ? 'sand' : biome === 'cave' ? (this.wxLava.length ? 'embers' : 'motes') : 'clouds';
       const R = Math.random, area = w * h, many = (n, make) => Array.from({ length: Math.round(n) }, make);
@@ -484,10 +485,11 @@ export class Renderer {
       const SM = this.wxSmoke, S = this.S;
       for (let n = houses.length * 1.5 * dt; n > 0 && SM.length < 420; n -= 1) {
         if (Math.random() > n) break;
-        const c = houses[Math.floor(Math.random() * houses.length)], g = this.geo.get(key(c.q, c.r));
-        if (!g) break;
-        const lay = houseLayout(c.q, c.r);
-        SM.push({ x: g.x + lay.dx * S, y: g.y + lay.dy * S * this.sq, age: 0, life: 3.2 + Math.random() * 2.6, ph: Math.random() * 6.3 });
+        const ch = houses[Math.floor(Math.random() * houses.length)];
+        let gx = 0, gy = 0, gn = 0;                                  // the building's middle: the average of its hexes
+        for (const c of ch.cells) { const g = this.geo.get(key(c.q, c.r)); if (g) { gx += g.x; gy += g.y; gn++; } }
+        if (!gn) break;
+        SM.push({ x: gx / gn + ch.dx * S, y: gy / gn + ch.dy * S * this.sq, age: 0, life: 3.2 + Math.random() * 2.6, ph: Math.random() * 6.3 });
       }
       ctx.globalCompositeOperation = 'source-over';
       ctx.fillStyle = this.wxBiome === 'snow' ? '#aeb4bf' : this.wxBiome === 'cave' ? '#9a9aa0' : '#ececec';

@@ -29,8 +29,12 @@ export const TERRAIN = {
   // Lava: nobody can stand in it or walk through it, but it doesn't block sight, and flyers cross it
   // (even under a cave ceiling). Burrowers pass beneath.
   lava:   { name: 'Lava',   cost: Infinity, cover: 0 },
+  // Road: plain ground, painted as a track. It joins up with the road, bridge (ruins) and house hexes next to it.
+  road:   { name: 'Road',   cost: 1, cover: 0 },
   // House: one-hex creatures can go inside (slow to enter, heavy cover); big ones can't. Like rock it
   // is tall, so it blocks sight lines that pass through it — though not for whoever is in it.
+  // House hexes next to each other are drawn as one larger building (two make a long hall, three in
+  // a triangle a manor); the rules still treat each hex on its own.
   house:  { name: 'House',  cost: 2, cover: 2, narrow: true, tall: true },
   rock:   { name: 'Rock',   cost: Infinity, cover: 0, tall: true },   // impassable, blocks line of sight
 };

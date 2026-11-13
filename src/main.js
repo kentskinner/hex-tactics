@@ -702,7 +702,7 @@ $('mapSel').addEventListener('change', (ev) => {
 // ---- Editor ----
 
 const BRUSHES = [
-  ['Terrain', [['Grass', 't:grass'], ['Forest', 't:forest'], ['Ruins', 't:ruins'], ['House', 't:house'], ['Stalagmites / stones', 't:spikes'], ['Water', 't:water'], ['Lava', 't:lava'], ['Rock', 't:rock']]],
+  ['Terrain', [['Grass', 't:grass'], ['Forest', 't:forest'], ['Ruins', 't:ruins'], ['House', 't:house'], ['Road', 't:road'], ['Stalagmites / stones', 't:spikes'], ['Water', 't:water'], ['Lava', 't:lava'], ['Rock', 't:rock']]],
   ['Height', [['0', 'e:0'], ['1', 'e:1'], ['2', 'e:2'], ['3', 'e:3']]],
   ['Markers (click to place or remove)', [['Blue spawn', 'spawn:0'], ['Red spawn', 'spawn:1'], ['Neutral monster', 'spawn:2'], ['Control point', 'objective']]],
   ['Board shape', [['Add hex', 'add'], ['Remove hex', 'remove']]],

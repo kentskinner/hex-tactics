@@ -27,6 +27,47 @@ export function houseLayout(q, r) {
   return { ang, w, d, t, off, dx: lx * Math.cos(ang) - ly * Math.sin(ang), dy: lx * Math.sin(ang) + ly * Math.cos(ang), thatch: h(77) < 0.4 };
 }
 
+// The buildings a set of cells makes. House hexes next to each other join up: three that all touch
+// become a manor, two a long hall, the rest stand alone. Each building is
+//   { cells, kind: 'house' | 'hall' | 'manor', ang, w, d, thatch, chim: [{t, off, dx, dy}] }
+// with sizes in units of the hex size and the chimneys given from the building's middle (the
+// average of its hexes' centres). Deterministic, so the painter and the smoke agree.
+export function buildings(cellList) {
+  const houses = cellList.filter((c) => c.t === 'house').sort((x, y) => x.r - y.r || x.q - y.q);
+  const at = new Map(houses.map((c) => [key(c.q, c.r), c])), used = new Set(), out = [];
+  const N = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+  const free = (c) => N.map(([dq, dr]) => at.get(key(c.q + dq, c.r + dr))).filter((n) => n && !used.has(n));
+  const px = (c) => [Math.sqrt(3) * (c.q + c.r / 2), 1.5 * c.r];
+  const chimney = (ang, w, d, t, off) => { const lx = t * w, ly = off * d; return { t, off, dx: lx * Math.cos(ang) - ly * Math.sin(ang), dy: lx * Math.sin(ang) + ly * Math.cos(ang) }; };
+  for (const c of houses) {                              // manors first
+    if (used.has(c)) continue;
+    const nb = free(c);
+    let trio = null;
+    for (const x of nb) for (const y of nb) if (x !== y && dist(x, y) === 1) trio = trio || [c, x, y];
+    if (!trio) continue;
+    trio.forEach((x) => used.add(x));
+    const h = (n) => hash(c.q * 3 + 11, c.r * 5 + 7, n), ang = (h(81) - 0.5) * 0.5, w = 1.02 + h(82) * 0.1, d = 0.86 + h(83) * 0.08;
+    out.push({ cells: trio, kind: 'manor', ang, w, d, thatch: false, chim: [chimney(ang, w, d, h(84) < 0.5 ? -0.45 : 0.45, -0.45)] });
+  }
+  for (const c of houses) {                              // then halls
+    if (used.has(c)) continue;
+    const n = free(c)[0];
+    if (!n) continue;
+    used.add(c); used.add(n);
+    const [x0, y0] = px(c), [x1, y1] = px(n), h = (k) => hash(c.q * 3 + 11, c.r * 5 + 7, k);
+    let ang = Math.atan2(y1 - y0, x1 - x0);
+    if (ang > Math.PI / 2 || ang <= -Math.PI / 2) ang += Math.PI * (ang > 0 ? -1 : 1);     // keep the lit slope on top
+    const w = 1.36 + h(85) * 0.08, d = 0.46 + h(86) * 0.07;
+    out.push({ cells: [c, n], kind: 'hall', ang, w, d, thatch: h(87) < 0.35, chim: [chimney(ang, w, d, -0.6, -0.3), chimney(ang, w, d, 0.55, -0.3)] });
+  }
+  for (const c of houses) {                              // the rest stand alone
+    if (used.has(c)) continue;
+    const lay = houseLayout(c.q, c.r);
+    out.push({ cells: [c], kind: 'house', ang: lay.ang, w: lay.w, d: lay.d, thatch: lay.thatch, chim: [{ t: lay.t, off: lay.off, dx: lay.dx, dy: lay.dy }] });
+  }
+  return out;
+}
+
 function hash(x, y, s) {
   let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(s | 0, 1442695041);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -302,6 +343,37 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
   };
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
 
+  // Roads: a trodden track from each road hex to the road hexes next to it, onto a bridge (ruins by water), and up to a house's door.
+  {
+    const N = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+    const segs = [], seen = new Set();
+    for (const c of sorted) {
+      if (c.t !== 'road') continue;
+      for (const [dq, dr] of N) {
+        const n = map.cells[key(c.q + dq, c.r + dr)];
+        if (!n || (n.t !== 'road' && n.t !== 'ruins' && n.t !== 'house')) continue;
+        // Ruins count only as a bridge (next to water); a house gets one path, from the first road hex that reaches it.
+        if (n.t === 'ruins' && !N.some(([aq, ar]) => map.cells[key(n.q + aq, n.r + ar)]?.t === 'water')) continue;
+        const id = n.t === 'road' ? [key(c.q, c.r), key(n.q, n.r)].sort().join('|') : '>' + key(n.q, n.r);
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const [x0, y0] = centre(c), [x1, y1] = centre(n), bend = (hash(c.q + n.q, c.r + n.r, seed + 90) - 0.5) * s * 0.5;
+        segs.push([x0, y0, x1, y1, (x0 + x1) / 2 - (y1 - y0) / (s * 1.73) * bend, (y0 + y1) / 2 + (x1 - x0) / (s * 1.73) * bend]);
+      }
+      if (!segs.some((g0) => g0[0] === centre(c)[0] && g0[1] === centre(c)[1])) { const [x, y] = centre(c); segs.push([x, y, x + 0.01, y, x, y]); }   // a lone road hex
+    }
+    const dirt = snow ? ['rgba(150,160,176,', 'rgba(196,204,216,'] : desert ? ['rgba(168,132,90,', 'rgba(232,206,160,'] : cave ? ['rgba(48,44,42,', 'rgba(104,96,88,'] : ['rgba(104,84,52,', 'rgba(176,148,104,'];
+    for (const [col, width, alpha] of [[dirt[0], 0.62, 0.3], [dirt[0], 0.46, 0.5], [dirt[1], 0.3, 0.75]]) {
+      ctx.strokeStyle = col + alpha + ')'; ctx.lineWidth = s * width;
+      for (const [x0, y0, x1, y1, mx, my] of segs) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(mx, my, x1, y1); ctx.stroke(); }
+    }
+    ctx.strokeStyle = 'rgba(40,28,14,0.22)'; ctx.lineWidth = 1.2;                                     // cart ruts
+    for (const [x0, y0, x1, y1, mx, my] of segs) for (const off of [-0.07, 0.07]) {
+      const nx = -(y1 - y0), ny = x1 - x0, nl = Math.hypot(nx, ny) || 1, ox = nx / nl * s * off, oy = ny / nl * s * off;
+      ctx.beginPath(); ctx.moveTo(x0 + ox, y0 + oy); ctx.quadraticCurveTo(mx + ox, my + oy, x1 + ox, y1 + oy); ctx.stroke();
+    }
+  }
+
   // Meadow details: grass tufts, a few flowers.
   for (const c of sorted) {
     if (c.t !== 'grass' || snow) continue;
@@ -466,28 +538,43 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
 
   }
 
-  // Houses, seen from above: a pitched roof (one slope lit, one in shade), a ridge, a chimney, and
-  // a trodden yard around it. Tiled or thatched in a meadow, snow-covered in winter, flat-roofed
-  // adobe in the desert, stone in a cave.
-  for (const c of sorted) {
-    if (c.t !== 'house') continue;
-    const [cx, cy] = centre(c);
-    const lay = houseLayout(c.q, c.r), w = lay.w * s, d = lay.d * s;
-    const yard = ctx.createRadialGradient(cx, cy, s * 0.2, cx, cy, s * 0.95);
+  // Buildings, seen from above: a pitched roof (one slope lit, one in shade), a ridge, chimneys,
+  // and a trodden yard. Tiled or thatched in a meadow, snow-covered in winter, flat-roofed adobe
+  // in the desert, stone in a cave. Halls are long, manors have a hipped roof and a porch.
+  for (const b of buildings(sorted)) {
+    let cx = 0, cy = 0;
+    for (const c of b.cells) { const [x, y] = centre(c); cx += x / b.cells.length; cy += y / b.cells.length; }
+    const w = b.w * s, d = b.d * s, reach = Math.max(w, d) + s * 0.4;
+    const yard = ctx.createRadialGradient(cx, cy, reach * 0.3, cx, cy, reach);
     yard.addColorStop(0, snow ? 'rgba(150,160,175,0.45)' : cave ? 'rgba(60,54,50,0.5)' : 'rgba(124,98,62,0.55)'); yard.addColorStop(1, 'rgba(124,98,62,0)');
-    ctx.fillStyle = yard; ctx.beginPath(); ctx.arc(cx, cy, s * 0.95, 0, 6.3); ctx.fill();
+    ctx.fillStyle = yard; ctx.beginPath(); ctx.arc(cx, cy, reach, 0, 6.3); ctx.fill();
     const roof = snow ? ['#f6f9fd', '#c2ccdb', '#8b97aa'] : desert ? ['#e2c596', '#cfae7c', '#9c7d52'] : cave ? ['#8a857f', '#57534f', '#3a3734']
-      : lay.thatch ? ['#d2b56a', '#9a7d3c', '#6d5626'] : ['#c06f45', '#853f27', '#5e2a1a'];
+      : b.thatch ? ['#d2b56a', '#9a7d3c', '#6d5626'] : b.kind === 'manor' ? ['#8f9aa6', '#5c6672', '#3c444e'] : ['#c06f45', '#853f27', '#5e2a1a'];
     ctx.save();
-    ctx.translate(cx, cy); ctx.rotate(lay.ang);
-    const sx = s * 0.1 * Math.cos(-lay.ang) - s * 0.14 * Math.sin(-lay.ang), sy = s * 0.1 * Math.sin(-lay.ang) + s * 0.14 * Math.cos(-lay.ang);
+    ctx.translate(cx, cy); ctx.rotate(b.ang);
+    const sh = b.kind === 'manor' ? 1.5 : 1;                                                           // taller buildings throw longer shadows
+    const sx = sh * (s * 0.1 * Math.cos(-b.ang) - s * 0.14 * Math.sin(-b.ang)), sy = sh * (s * 0.1 * Math.sin(-b.ang) + s * 0.14 * Math.cos(-b.ang));
     ctx.fillStyle = 'rgba(0,0,0,0.42)'; ctx.fillRect(-w + sx, -d + sy, 2 * w, 2 * d);                 // shadow
     ctx.fillStyle = snow ? '#6f5a48' : desert ? '#b8935f' : cave ? '#2c2a28' : '#e9dcc0';             // walls showing under the eaves
     ctx.fillRect(-w - s * 0.035, -d - s * 0.035, 2 * w + s * 0.07, 2 * d + s * 0.07);
+    const P = (pts, fill) => { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); };
     if (desert) {                                                                                     // flat roof with a parapet
       ctx.fillStyle = roof[1]; ctx.fillRect(-w, -d, 2 * w, 2 * d);
       ctx.fillStyle = roof[0]; ctx.fillRect(-w + s * 0.07, -d + s * 0.07, 2 * w - s * 0.14, 2 * d - s * 0.14);
       ctx.fillStyle = 'rgba(60,40,20,0.5)'; ctx.fillRect(w * 0.25, -d * 0.45, s * 0.14, s * 0.14);      // roof hatch
+    } else if (b.kind === 'manor') {                                                                  // hipped: four slopes meeting at a short ridge
+      const rx = Math.max(0, w - d);
+      P([[-w, -d], [w, -d], [rx, 0], [-rx, 0]], roof[0]);
+      P([[-w, d], [w, d], [rx, 0], [-rx, 0]], roof[1]);
+      P([[-w, -d], [-rx, 0], [-w, d]], snow ? '#dfe6f0' : cave ? '#726d68' : '#788490');
+      P([[w, -d], [rx, 0], [w, d]], roof[2]);
+      ctx.strokeStyle = 'rgba(20,24,30,0.3)'; ctx.lineWidth = 1;
+      for (let i = 1; i < 5; i++) { const k = i / 5; ctx.strokeRect(-w * k - rx * (1 - k), -d * k, 2 * (w * k + rx * (1 - k)), 2 * d * k); }
+      ctx.strokeStyle = 'rgba(16,18,22,0.75)'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(-w, -d); ctx.lineTo(-rx, 0); ctx.lineTo(-w, d); ctx.moveTo(w, -d); ctx.lineTo(rx, 0); ctx.lineTo(w, d); ctx.moveTo(-rx, 0); ctx.lineTo(rx, 0); ctx.stroke();
+      ctx.fillStyle = snow ? '#6f5a48' : '#d9ccb0'; ctx.fillRect(-s * 0.22, d, s * 0.44, s * 0.2);      // porch
+      ctx.fillStyle = roof[1]; ctx.fillRect(-s * 0.26, d + s * 0.06, s * 0.52, s * 0.16);
+      ctx.strokeStyle = 'rgba(16,18,22,0.75)'; ctx.lineWidth = 1.2; ctx.strokeRect(-s * 0.26, d + s * 0.06, s * 0.52, s * 0.16);
     } else {
       ctx.fillStyle = roof[0]; ctx.fillRect(-w, -d, 2 * w, d);                                         // lit slope
       ctx.fillStyle = roof[1]; ctx.fillRect(-w, 0, 2 * w, d);                                          // shaded slope
@@ -496,13 +583,22 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
       ctx.strokeStyle = 'rgba(30,18,10,0.14)';
       for (let x = -w + s * 0.08; x < w; x += s * 0.085) { ctx.beginPath(); ctx.moveTo(x, -d); ctx.lineTo(x, d); ctx.stroke(); }
       ctx.strokeStyle = roof[2]; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(-w, 0); ctx.lineTo(w, 0); ctx.stroke();   // ridge
+      if (b.kind === 'hall') {                                                                         // a cross-gable breaks up the long roof
+        const gx = w * 0.12, gw = s * 0.34;
+        P([[gx - gw, d + s * 0.2], [gx, 0], [gx + gw, d + s * 0.2]], roof[1]);
+        P([[gx - gw, d + s * 0.2], [gx, 0], [gx, d + s * 0.2]], roof[0]);
+        ctx.strokeStyle = 'rgba(24,16,10,0.85)'; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(gx - gw, d); ctx.lineTo(gx - gw, d + s * 0.2); ctx.lineTo(gx + gw, d + s * 0.2); ctx.lineTo(gx + gw, d); ctx.moveTo(gx, 0); ctx.lineTo(gx, d + s * 0.2); ctx.stroke();
+      }
     }
     ctx.strokeStyle = 'rgba(24,16,10,0.85)'; ctx.lineWidth = 1.4; ctx.strokeRect(-w, -d, 2 * w, 2 * d);
-    const cs = s * 0.075, chx = lay.t * w, chy = lay.off * d;                                          // the chimney
-    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(chx - cs + sx * 0.5, chy - cs + sy * 0.5, 2 * cs, 2 * cs);
-    ctx.fillStyle = desert ? '#8f6e44' : '#6b5a52'; ctx.fillRect(chx - cs, chy - cs, 2 * cs, 2 * cs);
-    ctx.fillStyle = '#1c1512'; ctx.fillRect(chx - cs * 0.5, chy - cs * 0.5, cs, cs);
-    ctx.strokeStyle = 'rgba(20,14,10,0.9)'; ctx.lineWidth = 1; ctx.strokeRect(chx - cs, chy - cs, 2 * cs, 2 * cs);
+    for (const ch of b.chim) {
+      const cs = s * (b.kind === 'house' ? 0.075 : 0.09), chx = ch.t * w, chy = ch.off * d;
+      ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(chx - cs + sx * 0.5, chy - cs + sy * 0.5, 2 * cs, 2 * cs);
+      ctx.fillStyle = desert ? '#8f6e44' : '#6b5a52'; ctx.fillRect(chx - cs, chy - cs, 2 * cs, 2 * cs);
+      ctx.fillStyle = '#1c1512'; ctx.fillRect(chx - cs * 0.5, chy - cs * 0.5, cs, cs);
+      ctx.strokeStyle = 'rgba(20,14,10,0.9)'; ctx.lineWidth = 1; ctx.strokeRect(chx - cs, chy - cs, 2 * cs, 2 * cs);
+    }
     ctx.restore();
   }
 
