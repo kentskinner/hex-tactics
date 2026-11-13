@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 100 100">
+  <!-- Drawn in the Blue team colours (#5b9bf0, #2f6fd6, #173763); the game recolours them for Red. -->
+  <defs>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff3c4"/><stop offset=".45" stop-color="#d9a441"/><stop offset="1" stop-color="#7a5318"/>
+    </linearGradient>
+    <radialGradient id="field" cx=".35" cy=".3" r=".85">
+      <stop offset="0" stop-color="#5b9bf0"/><stop offset=".6" stop-color="#2f6fd6"/><stop offset="1" stop-color="#173763"/>
+    </radialGradient>
+    <linearGradient id="cream" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#d3c49c"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff9c2"/><stop offset="1" stop-color="#f5b922"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48.5" fill="#2e210c"/>
+  <circle cx="50" cy="50" r="47" fill="url(#rim)"/>
+  <circle cx="50" cy="50" r="40" fill="#2e210c"/>
+  <circle cx="50" cy="50" r="38.5" fill="url(#field)"/>
+  <path d="M19 45 A32 32 0 0 1 60 20" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/>
+  <g stroke="#1b1b1b" stroke-width="2.4" stroke-linejoin="round">
+    <!-- hat: cone with a bent tip, then the brim -->
+    <path d="M27 67 C36 56 41 40 44 19 C50 17 57 20 62 27 C56 26 53 27 52 30 C54 46 60 58 68 67 Z" fill="url(#cream)"/>
+    <path d="M30.5 62.5 C42 58 53 58 64.5 62.5 L68 67 H27 Z" fill="#2f6fd6"/>
+    <ellipse cx="47.5" cy="69" rx="30" ry="8" fill="url(#cream)"/>
+    <path d="M24 68 C36 73 59 73 71 68" fill="none" stroke-width="1.6" stroke-opacity=".45"/>
+    <!-- lightning -->
+    <path d="M77 30 L64 49 H72 L64 68 L84 44 H75 L82 30 Z" fill="url(#bolt)" stroke-width="2"/>
+  </g>
+  <path d="M46.5 37 l1.9 4.2 4.6 .5 -3.4 3.1 1 4.5 -4.1 -2.3 -4.1 2.3 1 -4.5 -3.4 -3.1 4.6 -.5 Z" fill="#f5c542" stroke="#1b1b1b" stroke-width="1.2" stroke-linejoin="round"/>
+</svg>

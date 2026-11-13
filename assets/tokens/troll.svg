@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 100 100">
+  <!-- Drawn in the Blue team colours (#5b9bf0, #2f6fd6, #173763); the game recolours them for Red. -->
+  <defs>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff3c4"/><stop offset=".45" stop-color="#d9a441"/><stop offset="1" stop-color="#7a5318"/>
+    </linearGradient>
+    <radialGradient id="field" cx=".35" cy=".3" r=".85">
+      <stop offset="0" stop-color="#5b9bf0"/><stop offset=".6" stop-color="#2f6fd6"/><stop offset="1" stop-color="#173763"/>
+    </radialGradient>
+    <radialGradient id="skin" cx=".4" cy=".3" r=".8">
+      <stop offset="0" stop-color="#b8c2a0"/><stop offset=".6" stop-color="#7f8c6c"/><stop offset="1" stop-color="#48523c"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48.5" fill="#2e210c"/>
+  <circle cx="50" cy="50" r="47" fill="url(#rim)"/>
+  <circle cx="50" cy="50" r="41.5" fill="#2e210c"/>
+  <circle cx="50" cy="50" r="40.5" fill="url(#field)"/>
+  <path d="M17 45 A34 34 0 0 1 60 18" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="2.4" stroke-linecap="round"/>
+  <!-- cave troll: heavy brow, long ears, tusks -->
+  <g stroke="#1a1d14" stroke-width="1.8" stroke-linejoin="round">
+    <path d="M27 44 L11 36 L24 54 Z M73 44 L89 36 L76 54 Z" fill="url(#skin)"/>
+    <path d="M50 20 C66 20 75 32 74 48 C73 66 64 80 50 80 C36 80 27 66 26 48 C25 32 34 20 50 20 Z" fill="url(#skin)"/>
+    <path d="M30 42 C37 35 45 37 49 42 L51 42 C55 37 63 35 70 42 L68 47 C62 43 56 44 52 48 L48 48 C44 44 38 43 32 47 Z" fill="#3c4532"/>
+    <path d="M44 52 C46 58 54 58 56 52 L58 60 C54 64 46 64 42 60 Z" fill="#6c785a"/>
+    <path d="M36 66 C44 71 56 71 64 66 C60 75 40 75 36 66 Z" fill="#2a1512"/>
+    <path d="M39 68 L37 56 L43.500 67 Z M61 68 L63 56 L56.500 67 Z" fill="#f3ead2"/>
+  </g>
+  <circle cx="40.500" cy="47.500" r="2.300" fill="#ffd34a"/><circle cx="59.500" cy="47.500" r="2.300" fill="#ffd34a"/>
+  <circle cx="40.500" cy="47.500" r="0.900" fill="#1a1d14"/><circle cx="59.500" cy="47.500" r="0.900" fill="#1a1d14"/>
+</svg>

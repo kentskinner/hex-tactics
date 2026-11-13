@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hex Tactics</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { display: flex; background: #1b2530; color: #dfe6ee; font: 14px/1.4 system-ui, sans-serif; }
+  #stage { flex: 1; min-width: 0; position: relative; background: radial-gradient(ellipse at 50% 40%, #33485c, #1b2530 75%); }
+  #board { width: 100%; height: 100%; display: block; cursor: pointer; }
+  #banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); padding: 6px 16px;
+    border-radius: 999px; background: rgba(0,0,0,.6); font-weight: 600; white-space: nowrap; pointer-events: none; }
+  #banner.t0 { box-shadow: inset 0 0 0 2px #3f83e0; }
+  #banner.t1 { box-shadow: inset 0 0 0 2px #e2574c; }
+  #banner.t2 { box-shadow: inset 0 0 0 2px #7fb555; }
+  #banner.over, #banner.edit { box-shadow: inset 0 0 0 2px #ffe14a; }
+  #banner.over { font-size: 20px; padding: 8px 22px; animation: pop .5s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes pop { from { transform: translateX(-50%) scale(.4); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
+  aside { width: 300px; flex: none; padding: 14px; background: #141c25; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+  h1 { font-size: 18px; margin: 0; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #8296aa; margin: 0 0 6px; }
+  h3 { font-size: 12px; font-weight: 600; color: #a9b8c7; margin: 8px 0 4px; }
+  label { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  select, input[type=number], input[type=text], button { font: inherit; color: inherit; background: #243241; border: 1px solid #3a4c60; border-radius: 6px; padding: 5px 8px; }
+  input[type=number] { width: 90px; }
+  input.sm { width: 54px; }
+  input[type=text] { width: 150px; }
+  select { max-width: 170px; }
+  button { cursor: pointer; }
+  button:hover:not(:disabled) { background: #2f4257; }
+  button:disabled, input:disabled { opacity: .4; cursor: default; }
+  button.on, button.on:hover { background: #2d62ad; border-color: #6aa3f0; }
+  .row { display: flex; gap: 6px; margin-bottom: 6px; }
+  .row > * { flex: 1; }
+  .brushes { display: flex; flex-wrap: wrap; gap: 4px; }
+  .brushes button { padding: 3px 8px; font-size: 12px; }
+  #spells button { padding: 4px 2px; font-size: 12px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+  #info { min-height: 76px; background: #1b2530; border-radius: 6px; padding: 8px; white-space: pre-line; }
+  #log { flex: 1; min-height: 100px; overflow-y: auto; background: #1b2530; border-radius: 6px; padding: 8px; font-size: 12px; color: #a9b8c7; }
+  #log div { margin-bottom: 2px; }
+  .help { font-size: 12px; color: #8296aa; }
+  #edMsg { min-height: 18px; color: #f0c040; }
+  #zoomBox { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 4px; }
+  #zoomBox button { min-width: 30px; padding: 4px 8px; background: rgba(0,0,0,.6); color: #dfe6ee; border: 1px solid #3a4b5c; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  #zoomBox button:hover { background: rgba(40,60,80,.9); }
+  kbd { background: #243241; border-radius: 3px; padding: 0 4px; }
+  [hidden] { display: none !important; }
+  @media (max-width: 760px) { body { flex-direction: column; } aside { width: 100%; } #stage { min-height: 60vh; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="board"></canvas>
+  <div id="banner"></div>
+  <div id="zoomBox"><button id="zoomIn" title="Zoom in (+ or mouse wheel)">+</button><button id="zoomOut" title="Zoom out (−)">−</button><button id="zoomFit" title="Fit the whole map (0)">Fit</button></div>
+</div>
+<aside>
+  <h1>Hex Tactics</h1>
+  <section>
+    <h2>Players</h2>
+    <label><span><i class="dot" style="background:#3f83e0"></i>Blue</span><select id="ctl0"></select></label>
+    <label><span><i class="dot" style="background:#e2574c"></i>Red</span><select id="ctl1"></select></label>
+    <label>AI speed <input id="speed" type="range" min="0.5" max="6" step="0.5" value="1.5"></label>
+    <label><span><input id="sound" type="checkbox" checked> Sound</span></label>
+    <label title="How strongly the hex grid is drawn over the map. All the way left hides it.">Grid lines <input id="grid" type="range" min="0" max="1" step="0.05" value="1"></label>
+    <label>Objective <select id="mode"><option value="eliminate">Eliminate</option><option value="hold">Hold the points</option></select></label>
+    <label title="A Dragon fills seven hexes, flies over anything, and breathes a cone of fire.">Dragons <select id="dragons"><option value="both">One each</option><option value="red">Red only</option><option value="blue">Blue only</option><option value="none">None</option></select></label>
+    <label title="Extra creatures for both sides. Cave monsters: a web-spinning spider, a fast flying bat swarm and a rock worm that burrows through walls.">Monsters <select id="monsters"><option value="map">Map's own</option><option value="cave">Cave monsters</option><option value="none">None</option></select></label>
+    <label title="Monsters that belong to neither side. Each guards the ground around its lair and attacks anyone who comes close; they move after Red.">Neutrals <select id="wild"><option value="map">Map's own</option><option value="auto">Add some</option><option value="none">None</option></select></label>
+    <label><span><input id="counters" type="checkbox" checked> Counter-attacks</span></label>
+    <label><span><input id="zoc" type="checkbox" checked> Zones of control</span></label>
+    <label><span><input id="fog" type="checkbox"> Fog of war</span></label>
+    <label title="Off: each AI is only told what its own units can see. On: AIs are given the full board."><span><input id="cheat" type="checkbox"> AIs see through fog</span></label>
+  </section>
+  <section>
+    <h2>Map</h2>
+    <label>Map <select id="mapSel"></select></label>
+    <label>Seed <input id="seed" type="number" value="1" min="1"></label>
+    <label title="Size of random maps (hexes from the centre to the edge).">Size <select id="size"><option value="6">Standard (127 hexes)</option><option value="9">Large (271)</option><option value="12">Huge (469)</option><option value="16">Vast (817)</option></select></label>
+    <div class="row"><button id="new">Restart</button><button id="rand">Random map</button></div>
+    <div class="row"><button id="view"></button><button id="edit">Edit map</button></div>
+  </section>
+  <section id="editor" hidden>
+    <h2>Editor</h2>
+    <div id="brushes"></div>
+    <label style="margin-top:8px">Spawn class
+      <select id="edCls">
+        <option value="auto">Auto</option><option value="soldier">Soldier</option>
+        <option value="archer">Archer</option><option value="scout">Scout</option><option value="wizard">Wizard</option><option value="ogre">Ogre (3 hexes)</option><option value="dragon">Dragon (7 hexes)</option><option value="spider">Giant spider</option><option value="bat">Bat swarm</option><option value="worm">Rock worm (3 hexes)</option><option value="troll">Cave troll</option>
+      </select></label>
+    <label>Blank board
+      <span><input id="edCols" class="sm" type="number" min="2" max="40" value="15"> ×
+        <input id="edRows" class="sm" type="number" min="2" max="40" value="11">
+        <button id="edBlank">New</button></span></label>
+    <h3>Backdrop image</h3>
+    <div class="row"><button id="bgPaint" title="Generate artwork that matches the painted terrain and heights">Paint from terrain</button>
+      <select id="bgBiome" title="Art style for Paint from terrain"><option value="meadow">Meadow</option><option value="snow">Snow</option><option value="desert">Desert</option><option value="cave">Cave</option></select></div>
+    <div class="row"><button id="bgLoad">Load image…</button><button id="bgClear">Remove</button></div>
+    <input id="bgFile" type="file" accept="image/*" hidden>
+    <div id="bgTools" hidden>
+      <label>Hex width (image px) <input id="bgHex" type="number" min="4" step="0.5"></label>
+      <label><span><input id="bgAdjust" type="checkbox"> Align: drag to pan, wheel to zoom</span></label>
+      <label>Terrain overlay <input id="bgOverlay" type="range" min="0" max="0.9" step="0.05" value="0.4"></label>
+    </div>
+    <h3>Save</h3>
+    <label title="For caves: rock reaches the roof, so flying creatures can't cross it."><span><input id="edCeiling" type="checkbox"> Cave ceiling (no flying over rock)</span></label>
+    <label>Name <input id="edName" type="text" maxlength="40" placeholder="my-map"></label>
+    <div class="row"><button id="edSave">Save map</button></div>
+    <div id="edMsg" class="help"></div>
+  </section>
+  <section id="turnBox">
+    <h2>Turn</h2>
+    <div id="spells" class="row" hidden></div>
+    <div class="row"><button id="undo">Undo move</button><button id="end">End turn</button></div>
+  </section>
+  <section>
+    <h2>Info</h2>
+    <div id="info"></div>
+  </section>
+  <h2 style="margin:0">Log</h2>
+  <div id="log"></div>
+  <div class="help">Click a unit, then a blue hex to move or a red enemy to attack. Hover an enemy to see where it can strike next turn.
+    <kbd>E</kbd> end turn · <kbd>U</kbd> undo move · <kbd>V</kbd> switch view · <kbd>1</kbd>–<kbd>3</kbd> wizard spells · <kbd>Esc</kbd> deselect</div>
+</aside>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

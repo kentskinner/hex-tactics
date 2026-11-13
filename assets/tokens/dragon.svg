@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 100 100">
+  <!-- Drawn in the Blue team colours (#5b9bf0, #2f6fd6, #173763); the game recolours them for Red. -->
+  <defs>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff3c4"/><stop offset=".45" stop-color="#d9a441"/><stop offset="1" stop-color="#7a5318"/>
+    </linearGradient>
+    <radialGradient id="field" cx=".35" cy=".3" r=".85">
+      <stop offset="0" stop-color="#5b9bf0"/><stop offset=".6" stop-color="#2f6fd6"/><stop offset="1" stop-color="#173763"/>
+    </radialGradient>
+    <linearGradient id="hide" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a5560"/><stop offset="1" stop-color="#1d2329"/>
+    </linearGradient>
+    <linearGradient id="wing" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c9483a"/><stop offset="1" stop-color="#6e1d18"/>
+    </linearGradient>
+    <linearGradient id="horn" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff6dc"/><stop offset="1" stop-color="#b79a62"/>
+    </linearGradient>
+    <radialGradient id="flame" cx=".5" cy=".2" r=".9">
+      <stop offset="0" stop-color="#fff7c0"/><stop offset=".45" stop-color="#ffb02e"/><stop offset="1" stop-color="#e2470f"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48.8" fill="#2e210c"/>
+  <circle cx="50" cy="50" r="47.6" fill="url(#rim)"/>
+  <circle cx="50" cy="50" r="43.6" fill="#2e210c"/>
+  <circle cx="50" cy="50" r="42.8" fill="url(#field)"/>
+  <path d="M15 44 A36 36 0 0 1 60 15" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="1.8" stroke-linecap="round"/>
+  <g stroke="#14100c" stroke-width="1.1" stroke-linejoin="round">
+    <!-- wings, seen from above -->
+    <path d="M47 47 C36 36 24 31 10 34 C15 38 17 42 17 46 C21 44 25 45 27 49 C30 46 34 47 36 52 C39 50 43 51 46 55 Z" fill="url(#wing)"/>
+    <path d="M53 47 C64 36 76 31 90 34 C85 38 83 42 83 46 C79 44 75 45 73 49 C70 46 66 47 64 52 C61 50 57 51 54 55 Z" fill="url(#wing)"/>
+    <path d="M47 47 C36 40 24 36 10 34 M46 50 C38 46 30 46 27 49 M46 52 C42 50 38 50 36 52" fill="none" stroke-opacity=".55" stroke-width=".8"/>
+    <path d="M53 47 C64 40 76 36 90 34 M54 50 C62 46 70 46 73 49 M54 52 C58 50 62 50 64 52" fill="none" stroke-opacity=".55" stroke-width=".8"/>
+    <!-- tail -->
+    <path d="M46.5 60 C45 70 48 76 53 79 C58 82 61 86 58 90 C66 87 66 79 60 75 C56 72 54 68 53.5 60 Z" fill="url(#hide)"/>
+    <path d="M58 90 L63 92 L61 86 Z" fill="url(#horn)"/>
+    <!-- body and neck -->
+    <path d="M50 30 C56 34 58 44 57 54 C56 61 53 65 50 66 C47 65 44 61 43 54 C42 44 44 34 50 30 Z" fill="url(#hide)"/>
+    <path d="M50 36 V62 M46.5 42 H53.5 M45.5 48 H54.5 M45.5 54 H54.5" fill="none" stroke="#7d8a96" stroke-opacity=".6" stroke-width=".8"/>
+    <!-- head -->
+    <path d="M44 20 L40 11 L46.5 17 Z M56 20 L60 11 L53.5 17 Z" fill="url(#horn)"/>
+    <path d="M50 12 C54 13 57 18 56.5 24 C56 29 53.5 33 50 34 C46.5 33 44 29 43.5 24 C43 18 46 13 50 12 Z" fill="url(#hide)"/>
+    <path d="M45.6 21.5 L48.4 23.3 L45.6 23.9 Z M54.4 21.5 L51.6 23.3 L54.4 23.9 Z" fill="#ffd23a" stroke-width=".5"/>
+  </g>
+  <!-- a lick of flame at the snout -->
+  <path d="M50 5.5 C52.6 8.4 53.6 10.6 52.6 13 C51.9 14.6 48.1 14.6 47.4 13 C46.4 10.6 47.4 8.4 50 5.5 Z" fill="url(#flame)" stroke="#7a2a08" stroke-width=".6"/>
+</svg>

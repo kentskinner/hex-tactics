@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 100 100">
+  <!-- Drawn in the Blue team colours (#5b9bf0, #2f6fd6, #173763); the game recolours them for Red. -->
+  <defs>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff3c4"/><stop offset=".45" stop-color="#d9a441"/><stop offset="1" stop-color="#7a5318"/>
+    </linearGradient>
+    <radialGradient id="field" cx=".35" cy=".3" r=".85">
+      <stop offset="0" stop-color="#5b9bf0"/><stop offset=".6" stop-color="#2f6fd6"/><stop offset="1" stop-color="#173763"/>
+    </radialGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#dfe5ea"/><stop offset=".5" stop-color="#aab4bf"/><stop offset="1" stop-color="#8b96a2"/>
+    </linearGradient>
+    <g id="dagger" stroke="#1b1b1b" stroke-width="1.6" stroke-linejoin="round">
+      <path d="M50 12 L56 26 L53.5 58 H46.5 L44 26 Z" fill="url(#steel)"/>
+      <rect x="40" y="58" width="20" height="5" rx="2.5" fill="#e0b24a"/>
+      <rect x="47.3" y="63" width="5.4" height="11" fill="#7a4a24"/>
+      <circle cx="50" cy="76.5" r="3.6" fill="#e0b24a"/>
+    </g>
+  </defs>
+  <circle cx="50" cy="50" r="48.5" fill="#2e210c"/>
+  <circle cx="50" cy="50" r="47" fill="url(#rim)"/>
+  <circle cx="50" cy="50" r="40" fill="#2e210c"/>
+  <circle cx="50" cy="50" r="38.5" fill="url(#field)"/>
+  <path d="M19 45 A32 32 0 0 1 60 20" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/>
+  <use href="#dagger" transform="rotate(-38 50 52)"/>
+  <use href="#dagger" transform="rotate(38 50 52)"/>
+</svg>

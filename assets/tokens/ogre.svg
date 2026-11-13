@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 100 100">
+  <!-- Drawn in the Blue team colours (#5b9bf0, #2f6fd6, #173763); the game recolours them for Red. -->
+  <defs>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff3c4"/><stop offset=".45" stop-color="#d9a441"/><stop offset="1" stop-color="#7a5318"/>
+    </linearGradient>
+    <radialGradient id="field" cx=".35" cy=".3" r=".85">
+      <stop offset="0" stop-color="#5b9bf0"/><stop offset=".6" stop-color="#2f6fd6"/><stop offset="1" stop-color="#173763"/>
+    </radialGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#d19a5a"/><stop offset=".5" stop-color="#a86f36"/><stop offset="1" stop-color="#6e431c"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#8b96a2"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48.5" fill="#2e210c"/>
+  <circle cx="50" cy="50" r="47" fill="url(#rim)"/>
+  <circle cx="50" cy="50" r="41.5" fill="#2e210c"/>
+  <circle cx="50" cy="50" r="40.5" fill="url(#field)"/>
+  <path d="M17 45 A34 34 0 0 1 60 18" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="2.4" stroke-linecap="round"/>
+  <!-- spiked club -->
+  <g transform="rotate(38 50 50)" stroke="#1b1b1b" stroke-width="1.8" stroke-linejoin="round">
+    <path d="M40 22 L32 13 L44 17 Z M60 22 L68 13 L56 17 Z M37 37 L27 33 L37 30 Z M63 37 L73 33 L63 30 Z M38 50 L29 50 L38 44 Z M62 50 L71 50 L62 44 Z" fill="url(#steel)"/>
+    <path d="M50 12 C60 12 64 20 64 30 C64 44 58 52 55.5 66 L54 84 H46 L44.5 66 C42 52 36 44 36 30 C36 20 40 12 50 12 Z" fill="url(#wood)"/>
+    <path d="M44 25 C46 38 46 50 47.5 64 M55 22 C54 36 54 50 52.5 64" fill="none" stroke-width="1.1" stroke-opacity=".5"/>
+    <path d="M45.5 70 H54.5 M45.8 76 H54.2" stroke="#e8d9b0" stroke-width="2.4"/>
+    <circle cx="50" cy="87" r="4.4" fill="#e0b24a"/>
+  </g>
+</svg>
