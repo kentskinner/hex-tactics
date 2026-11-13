@@ -389,13 +389,20 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
     const dirt = snow ? ['rgba(150,160,176,', 'rgba(196,204,216,'] : desert ? ['rgba(168,132,90,', 'rgba(232,206,160,'] : cave ? ['rgba(48,44,42,', 'rgba(104,96,88,'] : ['rgba(104,84,52,', 'rgba(176,148,104,'];
     for (const [col, width, alpha] of [[dirt[0], 0.62, 0.3], [dirt[0], 0.46, 0.5], [dirt[1], 0.3, 0.75]]) {
       ctx.strokeStyle = col + alpha + ')'; ctx.lineWidth = s * width;
-      for (const [x0, y0, x1, y1, mx, my] of segs) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(mx, my, x1, y1); ctx.stroke(); }
+      // One path for the whole network: stroked together, overlapping ends at a joint don't add up into dark blobs.
+      ctx.beginPath();
+      for (const [x0, y0, x1, y1, mx, my] of segs) { ctx.moveTo(x0, y0); ctx.quadraticCurveTo(mx, my, x1, y1); }
+      ctx.stroke();
     }
     ctx.strokeStyle = 'rgba(40,28,14,0.22)'; ctx.lineWidth = 1.2;                                     // cart ruts
+    ctx.beginPath();                                   // ruts run along the middle of each stretch and fade out before the joints
     for (const [x0, y0, x1, y1, mx, my] of segs) for (const off of [-0.07, 0.07]) {
       const nx = -(y1 - y0), ny = x1 - x0, nl = Math.hypot(nx, ny) || 1, ox = nx / nl * s * off, oy = ny / nl * s * off;
-      ctx.beginPath(); ctx.moveTo(x0 + ox, y0 + oy); ctx.quadraticCurveTo(mx + ox, my + oy, x1 + ox, y1 + oy); ctx.stroke();
+      const at = (t) => [(1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * mx + t * t * x1 + ox, (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * my + t * t * y1 + oy];
+      const [ax, ay] = at(0.22), [bx, by] = at(0.5), [cx2, cy2] = at(0.78);
+      ctx.moveTo(ax, ay); ctx.quadraticCurveTo(2 * bx - (ax + cx2) / 2, 2 * by - (ay + cy2) / 2, cx2, cy2);
     }
+    ctx.stroke();
   }
 
   // Meadow details: grass tufts, a few flowers.
