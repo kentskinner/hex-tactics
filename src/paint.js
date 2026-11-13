@@ -21,7 +21,7 @@ const L = 4;                                    // low-res field scale
 export function houseLayout(q, r) {
   const h = (n) => hash(q * 3 + 11, r * 5 + 7, n);
   const ang = (h(71) - 0.5) * 0.9 + (h(72) < 0.35 ? Math.PI / 2 : 0);
-  const w = 0.6 + h(73) * 0.12, d = 0.36 + h(74) * 0.08;
+  const w = 0.8 + h(73) * 0.08, d = 0.54 + h(74) * 0.06;     // fills its hex: a house should dwarf a soldier
   const t = (h(75) < 0.5 ? -1 : 1) * (0.35 + h(76) * 0.35), off = -0.28;
   const lx = t * w, ly = off * d;
   return { ang, w, d, t, off, dx: lx * Math.cos(ang) - ly * Math.sin(ang), dy: lx * Math.sin(ang) + ly * Math.cos(ang), thatch: h(77) < 0.4 };
@@ -46,7 +46,7 @@ export function buildings(cellList) {
     for (const x of nb) for (const y of nb) if (x !== y && dist(x, y) === 1) trio = trio || [c, x, y];
     if (!trio) continue;
     trio.forEach((x) => used.add(x));
-    const h = (n) => hash(c.q * 3 + 11, c.r * 5 + 7, n), ang = (h(81) - 0.5) * 0.5, w = 1.02 + h(82) * 0.1, d = 0.86 + h(83) * 0.08;
+    const h = (n) => hash(c.q * 3 + 11, c.r * 5 + 7, n), ang = (h(81) - 0.5) * 0.5, w = 1.4 + h(82) * 0.1, d = 1.08 + h(83) * 0.08;
     out.push({ cells: trio, kind: 'manor', ang, w, d, thatch: false, chim: [chimney(ang, w, d, h(84) < 0.5 ? -0.45 : 0.45, -0.45)] });
   }
   for (const c of houses) {                              // then halls
@@ -57,7 +57,7 @@ export function buildings(cellList) {
     const [x0, y0] = px(c), [x1, y1] = px(n), h = (k) => hash(c.q * 3 + 11, c.r * 5 + 7, k);
     let ang = Math.atan2(y1 - y0, x1 - x0);
     if (ang > Math.PI / 2 || ang <= -Math.PI / 2) ang += Math.PI * (ang > 0 ? -1 : 1);     // keep the lit slope on top
-    const w = 1.36 + h(85) * 0.08, d = 0.46 + h(86) * 0.07;
+    const w = 1.62 + h(85) * 0.08, d = 0.66 + h(86) * 0.06;
     out.push({ cells: [c, n], kind: 'hall', ang, w, d, thatch: h(87) < 0.35, chim: [chimney(ang, w, d, -0.6, -0.3), chimney(ang, w, d, 0.55, -0.3)] });
   }
   for (const c of houses) {                              // the rest stand alone
@@ -685,7 +685,7 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
       P([[-w, -d], [-rx, 0], [-w, d]], snow ? '#dfe6f0' : cave ? '#726d68' : '#788490');
       P([[w, -d], [rx, 0], [w, d]], roof[2]);
       ctx.strokeStyle = 'rgba(20,24,30,0.3)'; ctx.lineWidth = 1;
-      for (let i = 1; i < 5; i++) { const k = i / 5; ctx.strokeRect(-w * k - rx * (1 - k), -d * k, 2 * (w * k + rx * (1 - k)), 2 * d * k); }
+      for (let i = 1; i < 9; i++) { const k = i / 9; ctx.strokeRect(-w * k - rx * (1 - k), -d * k, 2 * (w * k + rx * (1 - k)), 2 * d * k); }
       ctx.strokeStyle = 'rgba(16,18,22,0.75)'; ctx.lineWidth = 1.6;
       ctx.beginPath(); ctx.moveTo(-w, -d); ctx.lineTo(-rx, 0); ctx.lineTo(-w, d); ctx.moveTo(w, -d); ctx.lineTo(rx, 0); ctx.lineTo(w, d); ctx.moveTo(-rx, 0); ctx.lineTo(rx, 0); ctx.stroke();
       ctx.fillStyle = snow ? '#6f5a48' : '#d9ccb0'; ctx.fillRect(-s * 0.22, d, s * 0.44, s * 0.2);      // porch
@@ -695,7 +695,8 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
       ctx.fillStyle = roof[0]; ctx.fillRect(-w, -d, 2 * w, d);                                         // lit slope
       ctx.fillStyle = roof[1]; ctx.fillRect(-w, 0, 2 * w, d);                                          // shaded slope
       ctx.strokeStyle = 'rgba(30,18,10,0.28)'; ctx.lineWidth = 1;                                      // courses of tile or thatch
-      for (let i = 1; i < 4; i++) for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(-w, side * d * i / 4); ctx.lineTo(w, side * d * i / 4); ctx.stroke(); }
+      const rows = Math.max(4, Math.round(d / (s * 0.1)));
+      for (let i = 1; i < rows; i++) for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(-w, side * d * i / rows); ctx.lineTo(w, side * d * i / rows); ctx.stroke(); }
       ctx.strokeStyle = 'rgba(30,18,10,0.14)';
       for (let x = -w + s * 0.08; x < w; x += s * 0.085) { ctx.beginPath(); ctx.moveTo(x, -d); ctx.lineTo(x, d); ctx.stroke(); }
       ctx.strokeStyle = roof[2]; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(-w, 0); ctx.lineTo(w, 0); ctx.stroke();   // ridge

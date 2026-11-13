@@ -384,7 +384,7 @@ function ogre(team, facing = FACING[team]) {
   c.strokeStyle = rgb(shade); c.lineWidth = 0.03; c.beginPath(); c.moveTo(0.3, -0.17); c.quadraticCurveTo(0.36, 0, 0.3, 0.17); c.stroke();     // brow
   c.strokeStyle = rgb(shade, 0.7); c.lineWidth = 0.014; c.beginPath(); c.moveTo(0.02, -0.12); c.lineTo(0.16, -0.02); c.stroke();                // a scar
   for (const s of [-1, 1]) shape(c, [[0.36, 0.07 * s], [0.5, 0.13 * s], [0.38, 0.14 * s]], rgb(bone), 0.014);
-  return { canvas: finish(fig, { drop: [0.1, 0.14], blur: 0.04, U }), scale: half / (0.56 * 1.85) };
+  return { canvas: finish(fig, { drop: [0.1, 0.14], blur: 0.04, U }), scale: half / (0.56 * 2.15) };
 }
 
 // ---- Rock worm: reared up out of broken ground, seen straight down its ringed body into the maw ----
