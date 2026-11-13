@@ -259,7 +259,7 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
     rx.fillStyle = '#000'; rx.fillRect(0, 0, lw, lh);
     rx.strokeStyle = '#fff'; rx.lineCap = 'round';
     for (const pts of roadLines) for (let i = 1; i < pts.length; i++) {
-      rx.lineWidth = Math.max(1.5, (s * 0.4 * (pts[i - 1][2] + pts[i][2]) / 2) / L);
+      rx.lineWidth = Math.max(1.5, (s * 0.52 * (pts[i - 1][2] + pts[i][2]) / 2) / L);
       rx.beginPath(); rx.moveTo(pts[i - 1][0] / L, pts[i - 1][1] / L); rx.lineTo(pts[i][0] / L, pts[i][1] / L); rx.stroke();
     }
     const img = rx.getImageData(0, 0, lw, lh).data;
@@ -361,9 +361,9 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
       if (road > 0.03) {
         t = sstep(0.34, 0.6, road + (n2 - 0.5) * 0.55 + (hash(X, Y, seed + 41) - 0.5) * 0.16);
         if (t > 0) {
-          const mud = sstep(0.4, 0.75, fbm(X / (s * 0.45), Y / (s * 0.45), seed + 42, 3)) * sstep(0.5, 0.9, road);
-          const e0 = snow ? [186, 194, 206] : desert ? [226, 200, 154] : cave ? [96, 88, 80] : [158, 130, 90];
-          const e1 = snow ? [140, 150, 168] : desert ? [188, 158, 114] : cave ? [62, 56, 52] : [108, 86, 56];
+          const mud = sstep(0.56, 0.8, fbm(X / (s * 0.45), Y / (s * 0.45), seed + 42, 3)) * sstep(0.5, 0.9, road) * 0.8;
+          const e0 = snow ? [176, 186, 202] : desert ? [238, 216, 172] : cave ? [118, 108, 96] : [198, 170, 122];
+          const e1 = snow ? [136, 148, 168] : desert ? [196, 166, 120] : cave ? [70, 64, 58] : [126, 100, 66];
           const k = t * 0.94;
           r += (e0[0] + (e1[0] - e0[0]) * mud - r) * k; g += (e0[1] + (e1[1] - e0[1]) * mud - g) * k; bl += (e0[2] + (e1[2] - e0[2]) * mud - bl) * k;
         }
