@@ -384,6 +384,7 @@ export class Renderer {
       this.wxLava = this.order.filter((c) => c.t === 'lava');
       this.wxHouses = buildings(this.order).flatMap((b) => b.chim.map((ch) => ({ cells: b.cells, dx: ch.dx, dy: ch.dy })));   // one entry per chimney
       this.wxSmoke = [];
+      this.wxCam = null;
       this.wxKind = biome === 'snow' ? 'snow' : biome === 'desert' ? 'sand' : biome === 'cave' ? (this.wxLava.length ? 'embers' : 'motes') : 'clouds';
       const R = Math.random, area = w * h, many = (n, make) => Array.from({ length: Math.round(n) }, make);
       this.wx = this.wxKind === 'snow' ? many(Math.min(320, area / 6000), () => ({ x: R() * w, y: R() * h, z: 0.4 + R() * 0.6, ph: R() * 6.3 }))
@@ -393,6 +394,16 @@ export class Renderer {
             puffs: many(4 + R() * 3, () => [(R() - 0.5) * 1.5, (R() - 0.5) * 0.8, 0.45 + R() * 0.45]) })), ...many(Math.min(40, area / 40000), () => ({ x: R() * w, y: R() * h, z: 0.4 + R() * 0.6, ph: R() * 6.3 }))]
         : [];
     }
+    // Particles live in screen space, so when the view pans or zooms, carry them along with the map.
+    const cam = this.wxCam;
+    if (cam && (cam.ox !== this.ox || cam.oy !== this.oy || cam.S !== this.S)) {
+      const k = this.S / cam.S;
+      for (const p of [...this.wx, ...(this.wxSmoke || [])]) {
+        p.x = (p.x - cam.ox) * k + this.ox; p.y = (p.y - cam.oy) * k + this.oy;
+        if (p.cloud) p.r *= k;
+      }
+    }
+    this.wxCam = { ox: this.ox, oy: this.oy, S: this.S };
     const P = this.wx, t = now / 1000;
     ctx.save();
     // Weather stays over the map: the whole painted image when there is one, otherwise the hexes themselves.
@@ -409,8 +420,8 @@ export class Renderer {
       ctx.fillStyle = '#ffffff';
       for (const p of P) {
         p.y += (26 + 44 * p.z) * dt; p.x += (10 + Math.sin(t * 0.9 + p.ph) * 16) * p.z * dt;
-        if (p.y > h + 4) { p.y = -4; p.x = Math.random() * w; }
-        if (p.x > w + 4) p.x = -4;
+        if (p.y > h + 4 || p.y < -8) { p.y = -4; p.x = Math.random() * w; }
+        if (p.x > w + 4) p.x = -4; else if (p.x < -8) p.x = w;
         const fr = 1 + 2.1 * p.z;
         ctx.globalAlpha = 0.22 * p.z; ctx.fillStyle = '#35507a';          // a soft shadow, so flakes show against snow
         ctx.beginPath(); ctx.arc(p.x + fr, p.y + fr * 1.4, fr, 0, 6.3); ctx.fill();
@@ -422,15 +433,16 @@ export class Renderer {
       ctx.strokeStyle = '#f6e3b8'; ctx.lineCap = 'round';
       for (const p of P) {
         p.x += (240 + 260 * p.z) * (0.5 + gust * 0.5) * dt; p.y += (18 + Math.sin(t + p.len) * 14) * dt;
-        if (p.x > w + 40) { p.x = -40; p.y = Math.random() * h; }
-        if (p.y > h) p.y = 0;
+        if (p.x > w + 40 || p.x < -80) { p.x = -40; p.y = Math.random() * h; }
+        if (p.y > h) p.y = 0; else if (p.y < 0) p.y = h;
         ctx.globalAlpha = (0.18 + 0.3 * p.z) * (0.4 + 0.6 * gust); ctx.lineWidth = 1 + p.z;
         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.len * (0.6 + gust), p.y - p.len * 0.07); ctx.stroke();
       }
     } else if (this.wxKind === 'motes') {                             // slow dust and spores, faintly glowing
       for (const p of P) {
         p.x += Math.sin(t * 0.3 + p.ph) * 7 * dt; p.y -= (3 + 6 * p.z) * dt;
-        if (p.y < -4) { p.y = h + 4; p.x = Math.random() * w; }
+        if (p.y < -4 || p.y > h + 8) { p.y = h + 4; p.x = Math.random() * w; }
+        if (p.x < -4) p.x = w; else if (p.x > w + 4) p.x = 0;
         ctx.globalAlpha = (0.2 + 0.3 * p.z) * (0.6 + 0.4 * Math.sin(t * 1.3 + p.ph));
         ctx.fillStyle = p.hue < 0.6 ? '#9ff5e6' : p.hue < 0.85 ? '#c9b0ff' : '#e9e2d2';
         ctx.beginPath(); ctx.arc(p.x, p.y, 0.8 + 1.4 * p.z, 0, 6.3); ctx.fill();
@@ -439,8 +451,9 @@ export class Renderer {
       for (const p of P) {
         if (p.cloud) {                                               // a cloud's shadow sliding over the land
           p.x += 26 * dt; p.y += 9 * dt;
-          if (p.x - p.r * 2 > w) { p.x = -p.r * 2; p.y = Math.random() * h; }
-          if (p.y - p.r * 2 > h) p.y = -p.r * 2;
+          if (p.r > 600 || p.r < 60) p.r = 150 + Math.random() * 170;      // zooming rescales them; keep them cloud-sized
+          if (p.x - p.r * 2 > w || p.x + p.r * 2 < 0) { p.x = -p.r * 2; p.y = Math.random() * h; }
+          if (p.y - p.r * 2 > h) p.y = -p.r * 2; else if (p.y + p.r * 2 < 0) p.y = h + p.r;
           ctx.globalAlpha = 1;
           for (const [dx, dy, k] of p.puffs) {                       // a few overlapping puffs make one cloud
             const cx = p.x + dx * p.r, cy = p.y + dy * p.r, rr = p.r * k;
@@ -451,7 +464,8 @@ export class Renderer {
           }
         } else {                                                     // pollen on the breeze
           p.x += (12 + 10 * p.z + Math.sin(t * 0.7 + p.ph) * 8) * dt; p.y += Math.sin(t * 0.5 + p.ph) * 6 * dt;
-          if (p.x > w + 4) { p.x = -4; p.y = Math.random() * h; }
+          if (p.x > w + 4 || p.x < -8) { p.x = -4; p.y = Math.random() * h; }
+          if (p.y < -4) p.y = h; else if (p.y > h + 4) p.y = 0;
           ctx.globalAlpha = 0.25 + 0.35 * p.z; ctx.fillStyle = '#fff8d8';
           ctx.beginPath(); ctx.arc(p.x, p.y, 0.7 + 1.1 * p.z, 0, 6.3); ctx.fill();
         }

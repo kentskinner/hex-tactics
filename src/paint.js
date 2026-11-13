@@ -343,24 +343,48 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
   };
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
 
-  // Roads: a trodden track from each road hex to the road hexes next to it, onto a bridge (ruins by water), and up to a house's door.
+  // Roads: a trodden track along the road hexes, onto bridges (ruins by water) and up to each
+  // building's door. Where three road hexes all touch, only two of the three links are drawn
+  // (the ones along the road's main direction first), so junctions fork instead of making
+  // triangles and crosses.
   {
     const N = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
-    const segs = [], seen = new Set();
-    for (const c of sorted) {
-      if (c.t !== 'road') continue;
+    const roads = sorted.filter((c) => c.t === 'road'), isRoad = (q, r) => map.cells[key(q, r)]?.t === 'road';
+    const edges = [], axisCount = [0, 0, 0];
+    for (const c of roads) for (let i = 0; i < 3; i++) {             // each pair once: only look "forward"
+      const [dq, dr] = N[i];
+      if (isRoad(c.q + dq, c.r + dr)) { edges.push([c, map.cells[key(c.q + dq, c.r + dr)], i]); axisCount[i]++; }
+    }
+    edges.sort((x, y) => axisCount[y[2]] - axisCount[x[2]]);
+    const kept = new Map(), link = (x, y) => { for (const [p, q] of [[x, y], [y, x]]) { const k = key(p.q, p.r); if (!kept.has(k)) kept.set(k, new Set()); kept.get(k).add(key(q.q, q.r)); } };
+    const linked = (x, y) => kept.get(key(x.q, x.r))?.has(key(y.q, y.r));
+    const segs = [];
+    const seg = (x0, y0, x1, y1, id) => {
+      const bend = (hash(Math.round(x0 + x1), Math.round(y0 + y1), seed + 90 + id) - 0.5) * s * 0.22, len = Math.hypot(x1 - x0, y1 - y0) || 1;
+      segs.push([x0, y0, x1, y1, (x0 + x1) / 2 - (y1 - y0) / len * bend, (y0 + y1) / 2 + (x1 - x0) / len * bend]);
+    };
+    for (const [x, y] of edges) {
+      if (roads.some((z) => z !== x && z !== y && linked(x, z) && linked(z, y))) continue;       // would close a triangle
+      link(x, y);
+      seg(...centre(x), ...centre(y), 0);
+    }
+    for (const c of roads) {                                           // onto a bridge
       for (const [dq, dr] of N) {
         const n = map.cells[key(c.q + dq, c.r + dr)];
-        if (!n || (n.t !== 'road' && n.t !== 'ruins' && n.t !== 'house')) continue;
-        // Ruins count only as a bridge (next to water); a house gets one path, from the first road hex that reaches it.
-        if (n.t === 'ruins' && !N.some(([aq, ar]) => map.cells[key(n.q + aq, n.r + ar)]?.t === 'water')) continue;
-        const id = n.t === 'road' ? [key(c.q, c.r), key(n.q, n.r)].sort().join('|') : '>' + key(n.q, n.r);
-        if (seen.has(id)) continue;
-        seen.add(id);
-        const [x0, y0] = centre(c), [x1, y1] = centre(n), bend = (hash(c.q + n.q, c.r + n.r, seed + 90) - 0.5) * s * 0.5;
-        segs.push([x0, y0, x1, y1, (x0 + x1) / 2 - (y1 - y0) / (s * 1.73) * bend, (y0 + y1) / 2 + (x1 - x0) / (s * 1.73) * bend]);
+        if (n?.t === 'ruins' && N.some(([aq, ar]) => map.cells[key(n.q + aq, n.r + ar)]?.t === 'water')) seg(...centre(c), ...centre(n), 1);
       }
-      if (!segs.some((g0) => g0[0] === centre(c)[0] && g0[1] === centre(c)[1])) { const [x, y] = centre(c); segs.push([x, y, x + 0.01, y, x, y]); }   // a lone road hex
+      if (!kept.has(key(c.q, c.r))) { const [x, y] = centre(c); segs.push([x, y, x + 0.01, y, x, y]); }      // a lone road hex
+    }
+    for (const bld of buildings(sorted)) {                             // one path to each building, from the nearest road hex
+      let bx = 0, by = 0;
+      for (const c of bld.cells) { const [x, y] = centre(c); bx += x / bld.cells.length; by += y / bld.cells.length; }
+      let best = null, bestD = Infinity;
+      for (const c of bld.cells) for (const [dq, dr] of N) {
+        if (!isRoad(c.q + dq, c.r + dr)) continue;
+        const [x, y] = centre(map.cells[key(c.q + dq, c.r + dr)]), dd = Math.hypot(x - bx, y - by);
+        if (dd < bestD) { bestD = dd; best = [x, y]; }
+      }
+      if (best) seg(best[0], best[1], bx, by, 2);
     }
     const dirt = snow ? ['rgba(150,160,176,', 'rgba(196,204,216,'] : desert ? ['rgba(168,132,90,', 'rgba(232,206,160,'] : cave ? ['rgba(48,44,42,', 'rgba(104,96,88,'] : ['rgba(104,84,52,', 'rgba(176,148,104,'];
     for (const [col, width, alpha] of [[dirt[0], 0.62, 0.3], [dirt[0], 0.46, 0.5], [dirt[1], 0.3, 0.75]]) {
