@@ -75,50 +75,184 @@ function finish(fig, { under = null, drop = [0.07, 0.1], blur = 0.03, U }) {
   return out;
 }
 
-// ---- Soldier: helmet with a crest, a surcoat in the team's colour, a shield on the left arm, a sword held forward ----
-function soldier(team, facing = FACING[team]) {
-  const T = TEAM[team], half = 0.84, U = 170;
-  // The ground marker under the figure: a thin team-coloured ring, see-through in the middle.
-  const base = layer(half, U), b = base.ctx;
-  b.beginPath(); b.arc(0, 0, 0.47, 0, 6.3); b.fillStyle = rgb(T.base, 0.3); b.fill();
-  b.lineWidth = 0.09; b.strokeStyle = OUT; b.stroke();
-  b.lineWidth = 0.058; b.strokeStyle = rgb(T.base); b.stroke();
-  b.lineWidth = 0.016; b.strokeStyle = rgb(T.light, 0.9); b.beginPath(); b.arc(0, 0, 0.487, 3.5, 5.1); b.stroke();
+// ---- One-hex figures ----
+// A person seen from above is mostly a head and shoulders, so these lean on three things to stay
+// readable: a pale disc under the figure (so it never sits dark-on-dark), a bold ring in the
+// team's colour around it, and an oversized, distinctive outline — the soldier's round shield, the
+// archer's drawn bow, the wizard's hat brim, the spider's legs.
+const LEATHER = [[168, 128, 82], [122, 88, 54], [76, 52, 32]];
+const WOOD = [146, 100, 56], BONE = [236, 226, 198], BRASS = [208, 166, 78];
 
+function small(team, facing, draw) {
+  const T = TEAM[team], half = 0.86, U = 170;
+  const base = layer(half, U), b = base.ctx;
+  const disc = b.createRadialGradient(-0.12, -0.14, 0.05, 0, 0, 0.5);
+  disc.addColorStop(0, 'rgba(246,238,216,0.78)'); disc.addColorStop(1, 'rgba(214,202,172,0.66)');
+  b.beginPath(); b.arc(0, 0, 0.5, 0, 6.3); b.fillStyle = disc; b.fill();
+  b.lineWidth = 0.115; b.strokeStyle = OUT; b.stroke();
+  b.lineWidth = 0.08; b.strokeStyle = rgb(T.base); b.stroke();
+  b.lineWidth = 0.02; b.strokeStyle = rgb(T.light); b.beginPath(); b.arc(0, 0, 0.522, 3.4, 5.3); b.stroke();
+  b.lineWidth = 0.02; b.strokeStyle = rgb(T.dark); b.beginPath(); b.arc(0, 0, 0.522, 0.3, 2.1); b.stroke();
   const fig = layer(half, U), c = fig.ctx;
   c.rotate(facing);
-  // Cloak trailing behind.
-  shape(c, [[-0.02, -0.25], [-0.2, -0.27], [-0.36, -0.17], [-0.43, 0.0], [-0.37, 0.18], [-0.2, 0.27], [-0.02, 0.25]], rgb(T.dark));
-  c.strokeStyle = rgb(T.base, 0.8); c.lineWidth = 0.016;
-  for (const y of [-0.13, 0.0, 0.13]) { c.beginPath(); c.moveTo(-0.08, y); c.quadraticCurveTo(-0.24, y * 1.2, -0.38, y * 0.8 + 0.02); c.stroke(); }
-  // Sword arm and sword (right side: +y when facing +x).
-  shape(c, ellipse(0.12, 0.29, 0.15, 0.06, -0.12), rgb(STEEL[2]));
-  shape(c, [[0.24, 0.235], [0.7, 0.2], [0.8, 0.235], [0.7, 0.265], [0.24, 0.295]], rgb(STEEL[0]), 0.02);
-  c.strokeStyle = rgb(STEEL[2], 0.8); c.lineWidth = 0.012; c.beginPath(); c.moveTo(0.28, 0.265); c.lineTo(0.72, 0.234); c.stroke();
-  shape(c, [[0.215, 0.17], [0.255, 0.17], [0.27, 0.36], [0.23, 0.36]], 'rgb(196,152,64)', 0.018);
-  shape(c, ellipse(0.16, 0.275, 0.055, 0.036, -0.1), 'rgb(84,58,36)', 0.016);
-  // Shoulders in mail, the surcoat over them, and a pauldron on each shoulder.
-  shape(c, ellipse(0, 0, 0.16, 0.31), rgb(STEEL[2]));
-  shape(c, ellipse(-0.01, 0, 0.17, 0.215), rgb(T.base));
-  c.fillStyle = rgb(T.light); c.fillRect(-0.15, -0.035, 0.3, 0.07);          // a stripe down the surcoat
-  for (const y of [-0.265, 0.265]) {
-    shape(c, ellipse(0.0, y, 0.105, 0.085), rgb(STEEL[1]));
-    c.strokeStyle = rgb(STEEL[0], 0.9); c.lineWidth = 0.014; c.beginPath(); c.arc(0.0, y, 0.055, 3.4, 5.6); c.stroke();
-  }
-  // Shield on the left arm, carried forward.
-  c.save(); c.translate(0.24, -0.3); c.rotate(-0.38);
-  shape(c, ellipse(0, 0, 0.14, 0.25), rgb(STEEL[1]));
-  shape(c, ellipse(0, 0, 0.105, 0.21), rgb(T.base), 0.016);
-  c.fillStyle = rgb(T.light); c.fillRect(-0.105, -0.028, 0.21, 0.056); c.fillRect(-0.028, -0.2, 0.056, 0.4);
-  shape(c, ellipse(0, 0, 0.05, 0.055), 'rgb(206,164,76)', 0.016);
-  c.restore();
-  // Helmet with a crest and a nasal bar.
-  const g = c.createRadialGradient(-0.01, -0.05, 0.01, 0.03, 0, 0.15);
-  g.addColorStop(0, rgb(STEEL[0])); g.addColorStop(1, rgb(STEEL[2]));
-  shape(c, ellipse(0.03, 0, 0.14, 0.135), g, 0.026);
-  shape(c, [[0.14, -0.022], [0.235, -0.016], [0.235, 0.016], [0.14, 0.022]], rgb(STEEL[1]), 0.016);
-  shape(c, [[-0.15, -0.04], [0.11, -0.03], [0.14, 0], [0.11, 0.03], [-0.15, 0.04], [-0.2, 0]], rgb(T.light), 0.018);
-  return { canvas: finish(fig, { under: base.canvas, U }), scale: half / 0.56 };
+  draw(c, T);
+  return { canvas: finish(fig, { under: base.canvas, drop: [0.05, 0.075], blur: 0.022, U }), scale: half / 0.56 };
+}
+const LW = 0.03;                                    // outline weight for small figures: heavier, to hold up when tiny
+
+// Soldier: bright helmet with a crest, mail shoulders, a big round shield and a broad sword.
+function soldier(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    shape(c, [[-0.04, -0.24], [-0.22, -0.2], [-0.33, 0.0], [-0.22, 0.2], [-0.04, 0.24]], rgb(T.dark), LW);       // short cloak
+    shape(c, ellipse(0.14, 0.3, 0.16, 0.07, -0.1), rgb(STEEL[2]), LW);                                           // sword arm
+    shape(c, [[0.26, 0.225], [0.72, 0.19], [0.84, 0.235], [0.72, 0.275], [0.26, 0.31]], rgb(STEEL[0]), LW);        // blade
+    shape(c, [[0.225, 0.15], [0.275, 0.15], [0.29, 0.385], [0.24, 0.385]], rgb(BRASS), 0.022);                     // crossguard
+    shape(c, ellipse(0, 0, 0.17, 0.32), rgb(STEEL[1]), LW);                                                        // shoulders
+    for (const y of [-0.27, 0.27]) shape(c, ellipse(0.0, y, 0.11, 0.09), rgb(STEEL[0]), 0.024);
+    shape(c, ellipse(0.25, -0.27, 0.21, 0.21), rgb(STEEL[1]), LW);                                                 // round shield, rim
+    shape(c, ellipse(0.25, -0.27, 0.16, 0.16), rgb(T.base), 0.02);
+    c.fillStyle = rgb(T.light); c.fillRect(0.09, -0.3, 0.32, 0.06); c.fillRect(0.22, -0.43, 0.06, 0.32);
+    shape(c, ellipse(0.25, -0.27, 0.055, 0.055), rgb(BRASS), 0.02);
+    const g = c.createRadialGradient(0.0, -0.05, 0.01, 0.03, 0, 0.16);
+    g.addColorStop(0, 'rgb(236,240,246)'); g.addColorStop(1, rgb(STEEL[1]));
+    shape(c, ellipse(0.03, 0, 0.155, 0.15), g, LW);                                                                // helmet
+    shape(c, [[0.15, -0.025], [0.25, -0.018], [0.25, 0.018], [0.15, 0.025]], rgb(STEEL[1]), 0.02);
+    shape(c, [[-0.16, -0.045], [0.12, -0.034], [0.15, 0], [0.12, 0.034], [-0.16, 0.045], [-0.22, 0]], rgb(T.base), 0.022);   // crest
+  });
+}
+
+// Archer: a hooded figure at full draw — the bow across the front, the arrow pointing ahead, a quiver behind.
+function archer(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    shape(c, [[-0.02, -0.22], [-0.22, -0.2], [-0.36, -0.04], [-0.3, 0.16], [-0.12, 0.24], [-0.02, 0.22]], rgb(LEATHER[1]), LW);   // cloak
+    c.save(); c.translate(-0.2, 0.12); c.rotate(0.5);                                                               // quiver
+    shape(c, [[-0.13, -0.055], [0.1, -0.05], [0.1, 0.05], [-0.13, 0.055]], rgb(LEATHER[2]), 0.022);
+    for (const y of [-0.03, 0, 0.03]) shape(c, [[-0.13, y - 0.012], [-0.21, y - 0.028], [-0.2, y + 0.02], [-0.13, y + 0.012]], rgb(T.light), 0.012);
+    c.restore();
+    shape(c, ellipse(0, 0, 0.15, 0.28), rgb(LEATHER[0]), LW);                                                       // shoulders
+    shape(c, ellipse(0.2, -0.13, 0.19, 0.06, 0.35), rgb(LEATHER[0]), 0.024);                                        // bow arm
+    shape(c, ellipse(0.04, 0.2, 0.12, 0.06, -0.5), rgb(LEATHER[0]), 0.024);                                         // drawing arm
+    // The bow: a curve across the front with its tips swept back, strung to the drawing hand.
+    const bow = (x) => { x.moveTo(0.2, -0.56); x.quadraticCurveTo(0.56, 0, 0.2, 0.56); };
+    c.beginPath(); bow(c); c.strokeStyle = OUT; c.lineWidth = 0.1; c.stroke();
+    c.beginPath(); bow(c); c.strokeStyle = rgb(WOOD); c.lineWidth = 0.06; c.stroke();
+    c.beginPath(); bow(c); c.strokeStyle = 'rgba(255,236,200,0.5)'; c.lineWidth = 0.018; c.stroke();
+    c.strokeStyle = 'rgba(40,32,24,0.9)'; c.lineWidth = 0.014; c.beginPath(); c.moveTo(0.2, -0.56); c.lineTo(0.06, 0.02); c.lineTo(0.2, 0.56); c.stroke();
+    shape(c, [[0.04, 0.0], [0.6, -0.006], [0.6, 0.034], [0.04, 0.04]], rgb(BONE), 0.016);                           // arrow
+    shape(c, [[0.58, -0.05], [0.76, 0.014], [0.58, 0.08]], rgb(STEEL[0]), 0.02);
+    shape(c, ellipse(0.02, 0, 0.15, 0.145), rgb(T.base), LW);                                                       // hood
+    shape(c, [[-0.1, -0.09], [-0.24, 0], [-0.1, 0.09]], rgb(T.base), 0.024);
+    c.strokeStyle = rgb(T.light); c.lineWidth = 0.02; c.beginPath(); c.arc(0.02, 0, 0.1, -1.1, 1.1); c.stroke();
+  });
+}
+
+// Scout: slim and fast — a long cloak streaming behind, a feathered cap, a short blade in each hand.
+function scout(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    shape(c, [[0.0, -0.2], [-0.2, -0.22], [-0.42, -0.12], [-0.62, -0.16], [-0.5, 0.0], [-0.64, 0.14], [-0.42, 0.13], [-0.2, 0.22], [0.0, 0.2]], rgb(T.base), LW);   // cloak
+    c.strokeStyle = rgb(T.dark, 0.7); c.lineWidth = 0.016;
+    for (const y of [-0.09, 0.02, 0.11]) { c.beginPath(); c.moveTo(-0.06, y); c.lineTo(-0.44, y * 1.2); c.stroke(); }
+    for (const s of [-1, 1]) {
+      shape(c, ellipse(0.16, 0.24 * s, 0.17, 0.06, 0.28 * s), rgb(LEATHER[0]), 0.024);                              // arm
+      shape(c, [[0.28, 0.25 * s], [0.66, 0.36 * s], [0.72, 0.42 * s], [0.62, 0.42 * s], [0.26, 0.31 * s]], rgb(STEEL[0]), 0.024);   // blade
+      shape(c, [[0.25, 0.2 * s], [0.3, 0.21 * s], [0.27, 0.36 * s], [0.22, 0.35 * s]], rgb(BRASS), 0.018);
+    }
+    shape(c, ellipse(0, 0, 0.13, 0.25), rgb(LEATHER[1]), LW);                                                       // shoulders
+    c.strokeStyle = rgb(LEATHER[2]); c.lineWidth = 0.03; c.beginPath(); c.moveTo(-0.1, -0.2); c.lineTo(0.1, 0.2); c.stroke();     // baldric
+    shape(c, ellipse(0.03, 0, 0.135, 0.13), rgb(LEATHER[0]), LW);                                                   // cap
+    shape(c, [[0.0, -0.03], [-0.36, -0.22], [-0.46, -0.14], [-0.3, -0.08], [-0.04, 0.03]], rgb(T.light), 0.02);     // feather
+  });
+}
+
+// Wizard: a wide hat brim with the point flopping back, robes, a staff with a glowing head.
+function wizard(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    shape(c, ellipse(-0.04, 0, 0.3, 0.3), rgb(T.dark), LW);                                                         // robes
+    c.strokeStyle = rgb(T.light, 0.85); c.lineWidth = 0.022; c.beginPath(); c.arc(-0.04, 0, 0.255, 0.5, 5.8); c.stroke();
+    shape(c, ellipse(0.2, 0.26, 0.13, 0.055, 0.2), rgb(T.dark), 0.024);                                             // staff arm
+    shape(c, [[-0.3, 0.3], [0.62, 0.3], [0.62, 0.35], [-0.3, 0.35]], rgb(WOOD), 0.022);                             // staff
+    const glow = c.createRadialGradient(0.68, 0.325, 0.01, 0.68, 0.325, 0.2);
+    glow.addColorStop(0, 'rgba(255,255,255,0.95)'); glow.addColorStop(0.35, 'rgba(150,230,255,0.7)'); glow.addColorStop(1, 'rgba(150,230,255,0)');
+    c.fillStyle = glow; c.beginPath(); c.arc(0.68, 0.325, 0.2, 0, 6.3); c.fill();
+    shape(c, ellipse(0.68, 0.325, 0.075, 0.075), 'rgb(190,240,255)', 0.022);
+    shape(c, ellipse(0.22, -0.24, 0.12, 0.05, -0.25), rgb(T.dark), 0.024);                                          // casting arm
+    shape(c, ellipse(0.34, -0.28, 0.045, 0.045), 'rgb(232,196,160)', 0.018);
+    shape(c, ellipse(0.03, 0, 0.245, 0.24), rgb(T.base), LW);                                                       // hat brim
+    c.strokeStyle = rgb(T.light); c.lineWidth = 0.02; c.beginPath(); c.arc(0.03, 0, 0.2, 0, 6.3); c.stroke();
+    shape(c, [[0.14, -0.1], [-0.02, -0.13], [-0.32, -0.02], [-0.02, 0.13], [0.14, 0.1], [0.17, 0]], rgb(mix(T.base, T.light, 0.25)), 0.024);   // the cone, lying back
+    c.fillStyle = rgb(BRASS);                                                                                       // a star on it
+    c.beginPath(); for (let i = 0; i < 10; i++) { const an = i * 0.6283, r = i % 2 ? 0.022 : 0.055; c.lineTo(0.0 + Math.cos(an) * r, Math.sin(an) * r); } c.closePath(); c.fill();
+  });
+}
+
+// Giant spider: seen from above as any spider is — eight bent legs, a marked abdomen, a cluster of eyes.
+function spider(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    const dark = [44, 36, 48], mid = [78, 66, 82];
+    for (const s of [-1, 1]) for (const [a0, k, f] of [[0.55, 0.42, 0.72], [1.15, 0.46, 0.7], [1.85, 0.46, 0.68], [2.5, 0.44, 0.74]]) {
+      const hip = [0.1 + Math.cos(a0) * 0.08, Math.sin(a0) * 0.1 * s], knee = [0.08 + Math.cos(a0) * k, Math.sin(a0) * k * s], foot = [0.08 + Math.cos(a0 + 0.38) * f, Math.sin(a0 + 0.38) * f * s];
+      for (const [col, w] of [[OUT, 0.075], [rgb(mid), 0.04]]) { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(...hip); c.lineTo(...knee); c.lineTo(...foot); c.stroke(); }
+    }
+    shape(c, ellipse(-0.18, 0, 0.25, 0.21), rgb(dark), LW);                                                         // abdomen
+    shape(c, [[-0.3, 0], [-0.2, -0.085], [-0.14, 0], [-0.08, -0.07], [-0.02, 0], [-0.08, 0.07], [-0.14, 0], [-0.2, 0.085]], rgb(T.base), 0.016);   // its marking
+    shape(c, ellipse(0.14, 0, 0.15, 0.135), rgb(mid), LW);                                                          // head and thorax
+    for (const s of [-1, 1]) {
+      shape(c, [[0.25, 0.05 * s], [0.38, 0.04 * s], [0.3, 0.1 * s]], rgb(BONE), 0.016);                             // fangs
+      for (const [x, y, r] of [[0.22, 0.04, 0.022], [0.19, 0.085, 0.017], [0.16, 0.035, 0.014]]) { c.fillStyle = 'rgb(255,84,64)'; c.beginPath(); c.arc(x, y * s, r, 0, 6.3); c.fill(); }
+    }
+  });
+}
+
+// Bat swarm: five bats in loose formation, wings spread.
+function bat(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    const fur = [58, 48, 66], web = mix(T.dark, [70, 56, 84], 0.55);
+    const one = (x, y, k, tilt) => {
+      c.save(); c.translate(x, y); c.rotate(tilt); c.scale(k, k);
+      for (const s of [-1, 1]) {
+        shape(c, (p) => {
+          p.moveTo(0.04, 0.03 * s); p.lineTo(0.12, 0.2 * s); p.lineTo(0.0, 0.4 * s);
+          p.quadraticCurveTo(-0.02, 0.3 * s, -0.1, 0.3 * s); p.quadraticCurveTo(-0.08, 0.2 * s, -0.16, 0.16 * s); p.quadraticCurveTo(-0.1, 0.09 * s, -0.12, 0.03 * s);
+          p.closePath();
+        }, rgb(web), 0.03);
+        c.strokeStyle = rgb(mix(web, T.light, 0.4)); c.lineWidth = 0.016;
+        for (const [ex, ey] of [[0.0, 0.4], [-0.1, 0.3], [-0.16, 0.16]]) { c.beginPath(); c.moveTo(0.1, 0.19 * s); c.lineTo(ex, ey * s); c.stroke(); }
+      }
+      shape(c, ellipse(-0.01, 0, 0.12, 0.06), rgb(fur), 0.028);
+      for (const s of [-1, 1]) {
+        shape(c, [[0.08, 0.02 * s], [0.15, 0.07 * s], [0.1, 0.06 * s]], rgb(fur), 0.02);                             // ears
+        c.fillStyle = 'rgb(255,214,80)'; c.beginPath(); c.arc(0.1, 0.022 * s, 0.014, 0, 6.3); c.fill();
+      }
+      c.restore();
+    };
+    one(-0.22, -0.26, 0.62, -0.25); one(-0.28, 0.2, 0.68, 0.2); one(0.26, -0.26, 0.6, 0.15); one(0.24, 0.27, 0.58, -0.2); one(0.0, 0.0, 1.0, 0);
+  });
+}
+
+// Cave troll: hunched and long-armed — grey-green hide, big pointed ears, tusks, claws, a mossy mane.
+function troll(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    const hide = [128, 148, 116], shade = [84, 102, 78], moss = [58, 84, 50];
+    for (const s of [-1, 1]) {
+      shape(c, ellipse(0.2, 0.33 * s, 0.24, 0.085, 0.16 * s), rgb(hide), LW);                                       // long arms
+      shape(c, ellipse(0.44, 0.37 * s, 0.085, 0.08), rgb(hide), 0.024);
+      for (const k of [-1, 0, 1]) shape(c, [[0.49, (0.37 + k * 0.05) * s], [0.62, (0.39 + k * 0.075) * s], [0.5, (0.4 + k * 0.05) * s]], rgb(BONE), 0.014);    // claws
+    }
+    shape(c, ellipse(-0.04, 0, 0.24, 0.36), rgb(hide), LW);                                                         // the hunched back
+    c.strokeStyle = rgb(shade, 0.8); c.lineWidth = 0.02;
+    for (const x of [-0.16, -0.06]) { c.beginPath(); c.moveTo(x, -0.2); c.quadraticCurveTo(x - 0.06, 0, x, 0.2); c.stroke(); }
+    shape(c, [[-0.06, -0.3], [0.04, -0.34], [0.1, 0.3], [0.0, 0.34]], rgb(T.base), 0.022);                          // a sash in the team's colour
+    shape(c, [[-0.02, -0.1], [-0.2, -0.16], [-0.34, -0.05], [-0.26, 0.0], [-0.36, 0.07], [-0.2, 0.16], [-0.02, 0.1]], rgb(moss), 0.024);    // mane
+    for (const s of [-1, 1]) shape(c, [[0.06, 0.12 * s], [0.0, 0.34 * s], [0.16, 0.16 * s]], rgb(shade), 0.022);    // ears
+    const g = c.createRadialGradient(0.06, -0.06, 0.01, 0.1, 0, 0.19);
+    g.addColorStop(0, rgb(mix(hide, [240, 250, 220], 0.35))); g.addColorStop(1, rgb(hide));
+    shape(c, ellipse(0.1, 0, 0.18, 0.17), g, LW);                                                                   // head
+    c.strokeStyle = rgb(shade); c.lineWidth = 0.03; c.beginPath(); c.moveTo(0.2, -0.11); c.quadraticCurveTo(0.25, 0, 0.2, 0.11); c.stroke();   // brow
+    for (const s of [-1, 1]) {
+      shape(c, [[0.24, 0.05 * s], [0.38, 0.1 * s], [0.26, 0.11 * s]], rgb(BONE), 0.016);                            // tusks
+      c.fillStyle = 'rgb(255,210,70)'; c.beginPath(); c.arc(0.2, 0.06 * s, 0.018, 0, 6.3); c.fill();
+    }
+  });
 }
 
 // ---- Dragon: no ring at all — the creature itself, wings spread across its seven hexes ----
@@ -293,7 +427,7 @@ function worm(team, facing = FACING[team]) {
 // A figure is repainted for each facing rather than turned as a picture, because the light and the
 // shadow must stay put while the figure turns. Facings are rounded to steps of 15 degrees.
 export function paintedTokens() {
-  const painters = { soldier, dragon, ogre, worm }, cache = new Map(), STEP = Math.PI / 12;
+  const painters = { soldier, archer, scout, wizard, spider, bat, troll, dragon, ogre, worm }, cache = new Map(), STEP = Math.PI / 12;
   return {
     has: (cls) => !!painters[cls],
     facing: (team) => FACING[team] ?? 0,
