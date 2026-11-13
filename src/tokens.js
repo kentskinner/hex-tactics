@@ -198,12 +198,102 @@ function dragon(team, facing = FACING[team]) {
   return { canvas: finish(fig, { drop: [0.2, 0.28], blur: 0.07, U }), scale: half / (0.56 * 2.8) };
 }
 
+// ---- Ogre: a broad back under a fur mantle in the team's colour, a bald head, a spiked club held forward ----
+function ogre(team, facing = FACING[team]) {
+  const T = TEAM[team], half = 1.55, U = 130;
+  const skin = [172, 152, 112], shade = [118, 100, 70], bone = [232, 220, 192], wood = [134, 92, 52];
+  const fig = layer(half, U), c = fig.ctx;
+  c.rotate(facing);
+  // Feet, just showing in front of the belly.
+  for (const s of [-1, 1]) shape(c, ellipse(0.34, 0.27 * s, 0.2, 0.13, 0.15 * s), rgb(shade));
+  // Club arm (right) and the club itself, swung forward across the body.
+  shape(c, ellipse(0.26, 0.62, 0.34, 0.15, -0.12), rgb(skin));
+  shape(c, [[0.42, 0.5], [1.22, 0.1], [1.38, 0.2], [1.36, 0.42], [1.2, 0.5], [0.5, 0.66]], rgb(wood));
+  c.strokeStyle = rgb(mix(wood, [40, 24, 10], 0.5), 0.7); c.lineWidth = 0.018;
+  for (const k of [0.3, 0.55, 0.8]) { c.beginPath(); c.moveTo(0.5 + k * 0.1, 0.52 + k * 0.1); c.lineTo(1.24 + k * 0.1, 0.16 + k * 0.28); c.stroke(); }
+  for (const [x, y, dx, dy] of [[1.1, 0.16, -0.02, -0.16], [1.3, 0.14, 0.1, -0.14], [1.4, 0.3, 0.17, 0.0], [1.3, 0.47, 0.1, 0.14], [1.08, 0.53, -0.02, 0.15]]) {
+    shape(c, [[x - dy * 0.3, y + dx * 0.3], [x + dx, y + dy], [x + dy * 0.3, y - dx * 0.3]], rgb(STEEL[0]), 0.016);
+  }
+  shape(c, ellipse(0.5, 0.58, 0.14, 0.13), rgb(skin));                       // fist on the grip
+  // Free arm (left), fist forward.
+  shape(c, ellipse(0.3, -0.62, 0.34, 0.15, 0.2), rgb(skin));
+  shape(c, ellipse(0.62, -0.55, 0.15, 0.14), rgb(skin));
+  c.strokeStyle = rgb(shade, 0.8); c.lineWidth = 0.016;
+  for (const k of [-0.05, 0.02, 0.09]) { c.beginPath(); c.moveTo(0.7, -0.55 + k); c.lineTo(0.76, -0.55 + k); c.stroke(); }
+  // The great back and belly.
+  shape(c, ellipse(-0.02, 0, 0.5, 0.7), rgb(skin));
+  // Fur mantle over the shoulders and down the back: this carries the team's colour.
+  shape(c, (x) => {
+    x.moveTo(0.1, -0.74);
+    const edge = [[-0.2, -0.82], [-0.34, -0.66], [-0.5, -0.6], [-0.52, -0.4], [-0.66, -0.3], [-0.6, -0.12], [-0.72, 0], [-0.6, 0.12], [-0.66, 0.3], [-0.52, 0.4], [-0.5, 0.6], [-0.34, 0.66], [-0.2, 0.82], [0.1, 0.74]];
+    for (const [px, py] of edge) x.lineTo(px, py);
+    x.quadraticCurveTo(-0.06, 0.4, -0.02, 0); x.quadraticCurveTo(-0.06, -0.4, 0.1, -0.74);
+    x.closePath();
+  }, rgb(T.base));
+  c.strokeStyle = rgb(T.dark, 0.7); c.lineWidth = 0.016;                     // tufts
+  for (let i = 0; i < 26; i++) {
+    const a = 1.75 + (i / 25) * 2.78, r = 0.3 + (i % 3) * 0.1, x = -0.05 + Math.cos(a) * r * 0.9, y = Math.sin(a) * r * 1.5;
+    c.beginPath(); c.moveTo(x, y); c.lineTo(x - 0.07, y + (i % 2 ? 0.03 : -0.03)); c.stroke();
+  }
+  c.strokeStyle = rgb(T.light, 0.9); c.lineWidth = 0.03;                     // a paler band along its front edge
+  c.beginPath(); c.moveTo(0.08, -0.7); c.quadraticCurveTo(-0.08, -0.4, -0.04, 0); c.quadraticCurveTo(-0.08, 0.4, 0.08, 0.7); c.stroke();
+  // Spiked shoulder plates.
+  for (const s of [-1, 1]) {
+    shape(c, ellipse(0.02, 0.63 * s, 0.22, 0.17), rgb(STEEL[1]));
+    for (const [dx, dy] of [[-0.14, 0.14], [0.0, 0.2], [0.14, 0.14]]) shape(c, [[0.02 + dx - 0.04, (0.63 + dy * 0.6) * s], [0.02 + dx * 1.3, (0.63 + dy * 1.25) * s], [0.02 + dx + 0.04, (0.63 + dy * 0.6) * s]], rgb(bone), 0.014);
+  }
+  // Head: bald, heavy-browed, with ears and two tusks.
+  for (const s of [-1, 1]) shape(c, ellipse(0.1, 0.29 * s, 0.07, 0.09, 0.3 * s), rgb(shade));
+  const g = c.createRadialGradient(0.08, -0.08, 0.02, 0.14, 0, 0.3);
+  g.addColorStop(0, rgb(mix(skin, [255, 240, 200], 0.3))); g.addColorStop(1, rgb(skin));
+  shape(c, ellipse(0.14, 0, 0.27, 0.26), g, 0.026);
+  c.strokeStyle = rgb(shade); c.lineWidth = 0.03; c.beginPath(); c.moveTo(0.3, -0.17); c.quadraticCurveTo(0.36, 0, 0.3, 0.17); c.stroke();     // brow
+  c.strokeStyle = rgb(shade, 0.7); c.lineWidth = 0.014; c.beginPath(); c.moveTo(0.02, -0.12); c.lineTo(0.16, -0.02); c.stroke();                // a scar
+  for (const s of [-1, 1]) shape(c, [[0.36, 0.07 * s], [0.5, 0.13 * s], [0.38, 0.14 * s]], rgb(bone), 0.014);
+  return { canvas: finish(fig, { drop: [0.1, 0.14], blur: 0.04, U }), scale: half / (0.56 * 1.85) };
+}
+
+// ---- Rock worm: reared up out of broken ground, seen straight down its ringed body into the maw ----
+function worm(team, facing = FACING[team]) {
+  const T = TEAM[team], half = 1.55, U = 130;
+  const hide = mix(T.base, [176, 128, 112], 0.4), bone = [238, 228, 200];
+  const fig = layer(half, U), c = fig.ctx;
+  c.rotate(facing);
+  // Ground it has burst through: a ragged ring of thrown-up earth and stones.
+  const rim = [];
+  for (let i = 0; i < 22; i++) { const a = (i / 22) * 6.283, r = 1.14 + 0.14 * Math.sin(i * 2.7) + 0.08 * Math.cos(i * 5.1); rim.push([Math.cos(a) * r, Math.sin(a) * r]); }
+  shape(c, rim, 'rgb(112,90,62)');
+  c.strokeStyle = 'rgba(40,28,14,0.55)'; c.lineWidth = 0.02;
+  for (let i = 0; i < 11; i++) { const a = i * 0.571 + 0.2; c.beginPath(); c.moveTo(Math.cos(a) * 0.9, Math.sin(a) * 0.9); c.lineTo(Math.cos(a + 0.08) * 1.16, Math.sin(a + 0.08) * 1.16); c.stroke(); }
+  for (let i = 0; i < 9; i++) { const a = i * 0.698 + 0.5, r = 1.02 + (i % 3) * 0.07; shape(c, ellipse(Math.cos(a) * r, Math.sin(a) * r, 0.07 + (i % 2) * 0.03, 0.055, a), 'rgb(150,142,128)', 0.014); }
+  // The body: rings of hide, each a little further forward, so it leans the way it faces.
+  for (let i = 0; i < 5; i++) {
+    const r = 0.92 - i * 0.085, x = i * 0.075;
+    shape(c, ellipse(x, 0, r, r), rgb(mix(hide, i % 2 ? T.dark : T.light, i % 2 ? 0.28 : 0.12)), 0.024);
+    c.strokeStyle = rgb(T.dark, 0.35); c.lineWidth = 0.012;                  // plates across each ring
+    for (let k = 0; k < 14; k++) { const a = (k / 14) * 6.283 + i * 0.22; c.beginPath(); c.moveTo(x + Math.cos(a) * (r - 0.075), Math.sin(a) * (r - 0.075)); c.lineTo(x + Math.cos(a) * (r - 0.012), Math.sin(a) * (r - 0.012)); c.stroke(); }
+  }
+  // The maw.
+  const mx = 0.36, mr = 0.5;
+  const throat = c.createRadialGradient(mx, 0, 0.04, mx, 0, mr);
+  throat.addColorStop(0, 'rgb(14,4,6)'); throat.addColorStop(0.55, 'rgb(86,18,24)'); throat.addColorStop(1, 'rgb(176,58,62)');
+  shape(c, ellipse(mx, 0, mr, mr), throat, 0.028);
+  for (const [n, r0, r1, w] of [[15, mr - 0.01, mr - 0.2, 0.062], [10, mr - 0.2, mr - 0.33, 0.05]]) {     // two rows of teeth
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * 6.283 + (n === 10 ? 0.3 : 0), p = (r, da) => [mx + Math.cos(a + da) * r, Math.sin(a + da) * r];
+      shape(c, [p(r0, -w / r0 * 1.6), p(r1, 0), p(r0, w / r0 * 1.6)], rgb(bone), 0.014);
+    }
+  }
+  c.fillStyle = 'rgb(8,2,3)'; c.beginPath(); c.arc(mx, 0, 0.1, 0, 6.3); c.fill();
+  return { canvas: finish(fig, { drop: [0.08, 0.11], blur: 0.035, U }), scale: half / (0.56 * 1.85) };
+}
+
 // The painted figures, made on demand and kept: get(cls, team, angle) -> { canvas, scale } or null.
 // `angle` is which way the figure faces on screen (radians, 0 = east; default: toward the enemy).
 // A figure is repainted for each facing rather than turned as a picture, because the light and the
 // shadow must stay put while the figure turns. Facings are rounded to steps of 15 degrees.
 export function paintedTokens() {
-  const painters = { soldier, dragon }, cache = new Map(), STEP = Math.PI / 12;
+  const painters = { soldier, dragon, ogre, worm }, cache = new Map(), STEP = Math.PI / 12;
   return {
     has: (cls) => !!painters[cls],
     facing: (team) => FACING[team] ?? 0,
