@@ -397,10 +397,14 @@ export class Renderer {
     // Particles live in screen space, so when the view pans or zooms, carry them along with the map.
     const cam = this.wxCam;
     if (cam && (cam.ox !== this.ox || cam.oy !== this.oy || cam.S !== this.S)) {
-      const k = this.S / cam.S;
-      for (const p of [...this.wx, ...(this.wxSmoke || [])]) {
-        p.x = (p.x - cam.ox) * k + this.ox; p.y = (p.y - cam.oy) * k + this.oy;
-        if (p.cloud) p.r *= k;
+      const k = this.S / cam.S, anchored = this.wxKind === 'embers';
+      // Smoke and embers belong to a spot on the map, so they scale with it. The rest (snow, sand,
+      // pollen, clouds, dust) just fills the view: a pan slides it along, but a zoom would squeeze it
+      // into a clump or fling it off screen, so on a zoom it is scattered afresh instead.
+      for (const p of [...(anchored ? this.wx : []), ...(this.wxSmoke || [])]) { p.x = (p.x - cam.ox) * k + this.ox; p.y = (p.y - cam.oy) * k + this.oy; }
+      if (!anchored) for (const p of this.wx) {
+        if (Math.abs(k - 1) < 1e-6) { p.x += this.ox - cam.ox; p.y += this.oy - cam.oy; }
+        else { p.x = Math.random() * w; p.y = Math.random() * h; }
       }
     }
     this.wxCam = { ox: this.ox, oy: this.oy, S: this.S };

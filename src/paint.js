@@ -179,6 +179,94 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
     fGy[k] = ((fH[Math.min(j + 1, lh - 1) * lw + i] - fH[Math.max(j - 1, 0) * lw + i]) / (2 * L)) * s;
   }
 
+  // Roads. An unmade road was worn by feet and carts, not surveyed, so the track wanders: it
+  // passes a point nudged off each hex centre, sways between those points and changes width as it
+  // goes. Where three road hexes all touch only two of the three links are kept (the ones along
+  // the road's main direction first), so junctions fork. A road reaching the board's edge carries
+  // on off the map, bridges (ruins by water) are joined in, and each building gets one path to its wall.
+  // roadLines: [[x, y, widthFactor], ...] per stretch.
+  const roadLines = [];
+  {
+    const N6 = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+    const order = [...cells].sort((p, q) => p.r - q.r || p.q - q.q);
+    const roads = order.filter((c) => c.t === 'road'), isRoad = (q, r) => map.cells[key(q, r)]?.t === 'road';
+    const edges = [], axisCount = [0, 0, 0];
+    for (const c of roads) for (let i = 0; i < 3; i++) {             // each pair once: only look "forward"
+      const [dq, dr] = N6[i];
+      if (isRoad(c.q + dq, c.r + dr)) { edges.push([c, map.cells[key(c.q + dq, c.r + dr)], i]); axisCount[i]++; }
+    }
+    edges.sort((x, y) => axisCount[y[2]] - axisCount[x[2]]);
+    const kept = new Map(), link = (x, y) => { for (const [p, q] of [[x, y], [y, x]]) { const k = key(p.q, p.r); if (!kept.has(k)) kept.set(k, new Set()); kept.get(k).add(key(q.q, q.r)); } };
+    const linked = (x, y) => kept.get(key(x.q, x.r))?.has(key(y.q, y.r));
+    const node = (c) => { const [x, y] = centre(c); return [x + (hash(c.q * 7 + 3, c.r * 13 + 5, seed + 91) - 0.5) * s * 0.42, y + (hash(c.q * 11 + 1, c.r * 17 + 9, seed + 92) - 0.5) * s * 0.42]; };
+    const seg = (xa, ya, xb, yb) => {
+      const len = Math.hypot(xb - xa, yb - ya) || 1, nx = -(yb - ya) / len, ny = (xb - xa) / len, n = Math.max(4, Math.round(len / (s * 0.2)));
+      const pts = [];
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, bx = xa + (xb - xa) * t, by = ya + (yb - ya) * t;
+        const sway = Math.sin(Math.PI * t) * (fbm(bx / (s * 1.1), by / (s * 1.1), seed + 93, 2) - 0.5) * s * 0.6;
+        const x = bx + nx * sway, y = by + ny * sway;
+        pts.push([x, y, 0.6 + 0.95 * fbm(x / (s * 0.9), y / (s * 0.9), seed + 94, 2)]);
+      }
+      roadLines.push(pts);
+    };
+    for (const [x, y] of edges) {
+      if (roads.some((z) => z !== x && z !== y && linked(x, z) && linked(z, y))) continue;       // would close a triangle
+      link(x, y);
+      seg(...node(x), ...node(y));
+    }
+    for (const c of roads) {                                           // onto a bridge
+      for (const [dq, dr] of N6) {
+        const n = map.cells[key(c.q + dq, c.r + dr)];
+        if (n?.t === 'ruins' && N6.some(([aq, ar]) => map.cells[key(n.q + aq, n.r + ar)]?.t === 'water')) seg(...node(c), ...centre(n));
+      }
+      if (!kept.has(key(c.q, c.r))) { const [x, y] = node(c); seg(x - s * 0.2, y, x + s * 0.2, y); }      // a lone road hex
+    }
+    for (const c of roads) {                                           // off the edge of the map
+      const links = kept.get(key(c.q, c.r));
+      if (!links || links.size !== 1) continue;
+      const [x, y] = node(c), [lq, lr] = [...links][0].split(',').map(Number), [fx, fy] = centre({ q: lq, r: lr }), [hx, hy] = centre(c);
+      let best = null, bestDot = 0.2;
+      for (const [dq, dr] of N6) {
+        if (map.cells[key(c.q + dq, c.r + dr)]) continue;             // only toward hexes that aren't there
+        const [px, py] = centre({ q: c.q + dq, r: c.r + dr }), dot = ((px - hx) * (hx - fx) + (py - hy) * (hy - fy)) / (Math.hypot(px - hx, py - hy) * Math.hypot(hx - fx, hy - fy));
+        if (dot > bestDot) { bestDot = dot; best = [px - hx, py - hy]; }
+      }
+      if (best) seg(x, y, x + best[0] * 2.2, y + best[1] * 2.2);
+    }
+    for (const bld of buildings(order)) {                              // one path to each building, stopping at its wall
+      let bx = 0, by = 0;
+      for (const c of bld.cells) { const [x, y] = centre(c); bx += x / bld.cells.length; by += y / bld.cells.length; }
+      let best = null, bestD = Infinity;
+      for (const c of bld.cells) for (const [dq, dr] of N6) {
+        if (!isRoad(c.q + dq, c.r + dr)) continue;
+        const [x, y] = node(map.cells[key(c.q + dq, c.r + dr)]), dd = Math.hypot(x - bx, y - by);
+        if (dd < bestD) { bestD = dd; best = [x, y]; }
+      }
+      if (!best) continue;
+      const ang = Math.atan2(best[1] - by, best[0] - bx) - bld.ang;
+      const reach = Math.min(bestD * 0.8, s / Math.hypot(Math.cos(ang) / bld.w, Math.sin(ang) / bld.d));
+      seg(best[0], best[1], bx + (best[0] - bx) / bestD * reach, by + (best[1] - by) / bestD * reach);
+    }
+  }
+  // The road as a field, like water and forest: drawn small, then softened. Stage 2 turns it into
+  // bare earth, so the road gets the same grain, noise and hill shading as the ground around it.
+  const fRoad = new Float32Array(N);
+  if (roadLines.length) {
+    const rc = document.createElement('canvas');
+    rc.width = lw; rc.height = lh;
+    const rx = rc.getContext('2d');
+    rx.fillStyle = '#000'; rx.fillRect(0, 0, lw, lh);
+    rx.strokeStyle = '#fff'; rx.lineCap = 'round';
+    for (const pts of roadLines) for (let i = 1; i < pts.length; i++) {
+      rx.lineWidth = Math.max(1.5, (s * 0.4 * (pts[i - 1][2] + pts[i][2]) / 2) / L);
+      rx.beginPath(); rx.moveTo(pts[i - 1][0] / L, pts[i - 1][1] / L); rx.lineTo(pts[i][0] / L, pts[i][1] / L); rx.stroke();
+    }
+    const img = rx.getImageData(0, 0, lw, lh).data;
+    for (let k = 0; k < N; k++) fRoad[k] = img[k * 4] / 255;
+    blur(fRoad, lw, lh, (s * 0.06) / L);
+  }
+
   // ---- Stage 2: per-pixel shading ----
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
@@ -268,6 +356,18 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
         if (cave) { er = 92 - 34 * strata; eg = 82 - 30 * strata; eb = 76 - 24 * strata; }
         r += (er - r) * t; g += (eg - g) * t; bl += (eb - bl) * t;
       }
+      // Road: bare trodden earth with a ragged edge where the grass creeps in, darker where it is churned.
+      const road = S(fRoad);
+      if (road > 0.03) {
+        t = sstep(0.34, 0.6, road + (n2 - 0.5) * 0.55 + (hash(X, Y, seed + 41) - 0.5) * 0.16);
+        if (t > 0) {
+          const mud = sstep(0.4, 0.75, fbm(X / (s * 0.45), Y / (s * 0.45), seed + 42, 3)) * sstep(0.5, 0.9, road);
+          const e0 = snow ? [186, 194, 206] : desert ? [226, 200, 154] : cave ? [96, 88, 80] : [158, 130, 90];
+          const e1 = snow ? [140, 150, 168] : desert ? [188, 158, 114] : cave ? [62, 56, 52] : [108, 86, 56];
+          const k = t * 0.94;
+          r += (e0[0] + (e1[0] - e0[0]) * mud - r) * k; g += (e0[1] + (e1[1] - e0[1]) * mud - g) * k; bl += (e0[2] + (e1[2] - e0[2]) * mud - bl) * k;
+        }
+      }
       let shade = 1 + clamp((gx + gy) * 0.16, -0.3, 0.3);
       // A fine contour line where the ground crosses each half level, so slopes read as terraces.
       if (steep > 0.55) {
@@ -343,103 +443,51 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
   };
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
 
-  // Roads: a trodden track along the road hexes, onto bridges (ruins by water) and up to each
-  // building's door. Where three road hexes all touch, only two of the three links are drawn
-  // (the ones along the road's main direction first), so junctions fork instead of making
-  // triangles and crosses.
+  // Road details (the road itself is bare earth painted with the ground, in stage 2): cart ruts,
+  // grass surviving between them, stones kicked to the sides, a puddle where the track spreads wide.
   {
-    const N = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
-    const roads = sorted.filter((c) => c.t === 'road'), isRoad = (q, r) => map.cells[key(q, r)]?.t === 'road';
-    const edges = [], axisCount = [0, 0, 0];
-    for (const c of roads) for (let i = 0; i < 3; i++) {             // each pair once: only look "forward"
-      const [dq, dr] = N[i];
-      if (isRoad(c.q + dq, c.r + dr)) { edges.push([c, map.cells[key(c.q + dq, c.r + dr)], i]); axisCount[i]++; }
-    }
-    edges.sort((x, y) => axisCount[y[2]] - axisCount[x[2]]);
-    const kept = new Map(), link = (x, y) => { for (const [p, q] of [[x, y], [y, x]]) { const k = key(p.q, p.r); if (!kept.has(k)) kept.set(k, new Set()); kept.get(k).add(key(q.q, q.r)); } };
-    const linked = (x, y) => kept.get(key(x.q, x.r))?.has(key(y.q, y.r));
-    // An unmade road wanders: it was worn by feet and carts, not surveyed. So the track doesn't run
-    // through the hex centres but through a point nudged off each one, sways between them, and
-    // changes width as it goes — wide and trampled in places, pinched in others.
-    const node = (c) => { const [x, y] = centre(c); return [x + (hash(c.q * 7 + 3, c.r * 13 + 5, seed + 91) - 0.5) * s * 0.42, y + (hash(c.q * 11 + 1, c.r * 17 + 9, seed + 92) - 0.5) * s * 0.42]; };
-    const lines = [];                                                  // each: [[x, y, widthFactor], ...]
-    const seg = (x0, y0, x1, y1) => {
-      const len = Math.hypot(x1 - x0, y1 - y0) || 1, nx = -(y1 - y0) / len, ny = (x1 - x0) / len, n = Math.max(4, Math.round(len / (s * 0.22)));
-      const pts = [];
-      for (let i = 0; i <= n; i++) {
-        const t = i / n, bx = x0 + (x1 - x0) * t, by = y0 + (y1 - y0) * t;
-        const sway = Math.sin(Math.PI * t) * (fbm(bx / (s * 1.1), by / (s * 1.1), seed + 93, 2) - 0.5) * s * 0.55;
-        const x = bx + nx * sway, y = by + ny * sway;
-        pts.push([x, y, 0.72 + 0.62 * fbm(x / (s * 0.75), y / (s * 0.75), seed + 94, 2)]);
-      }
-      lines.push(pts);
-    };
-    for (const [x, y] of edges) {
-      if (roads.some((z) => z !== x && z !== y && linked(x, z) && linked(z, y))) continue;       // would close a triangle
-      link(x, y);
-      seg(...node(x), ...node(y));
-    }
-    for (const c of roads) {                                           // onto a bridge
-      for (const [dq, dr] of N) {
-        const n = map.cells[key(c.q + dq, c.r + dr)];
-        if (n?.t === 'ruins' && N.some(([aq, ar]) => map.cells[key(n.q + aq, n.r + ar)]?.t === 'water')) seg(...node(c), ...centre(n));
-      }
-      if (!kept.has(key(c.q, c.r))) { const [x, y] = node(c); seg(x, y, x + 0.5, y); }                // a lone road hex
-    }
-    for (const c of roads) {                                           // a road that ends on the board's edge carries on off the map
-      const links = kept.get(key(c.q, c.r));
-      if (!links || links.size !== 1) continue;
-      const [x, y] = node(c), [lq, lr] = [...links][0].split(',').map(Number), [fx, fy] = centre({ q: lq, r: lr }), [hx, hy] = centre(c);
-      let best = null, bestDot = 0.2;
-      for (const [dq, dr] of N) {
-        if (map.cells[key(c.q + dq, c.r + dr)]) continue;             // only toward hexes that aren't there
-        const [ox, oy] = centre({ q: c.q + dq, r: c.r + dr }), dot = ((ox - hx) * (hx - fx) + (oy - hy) * (hy - fy)) / (Math.hypot(ox - hx, oy - hy) * Math.hypot(hx - fx, hy - fy));
-        if (dot > bestDot) { bestDot = dot; best = [ox - hx, oy - hy]; }
-      }
-      if (best) seg(x, y, x + best[0] * 2.2, y + best[1] * 2.2);
-    }
-    for (const bld of buildings(sorted)) {                             // one path to each building, from the nearest road hex
-      let bx = 0, by = 0;
-      for (const c of bld.cells) { const [x, y] = centre(c); bx += x / bld.cells.length; by += y / bld.cells.length; }
-      let best = null, bestD = Infinity;
-      for (const c of bld.cells) for (const [dq, dr] of N) {
-        if (!isRoad(c.q + dq, c.r + dr)) continue;
-        const [x, y] = node(map.cells[key(c.q + dq, c.r + dr)]), dd = Math.hypot(x - bx, y - by);
-        if (dd < bestD) { bestD = dd; best = [x, y]; }
-      }
-      if (best) seg(best[0], best[1], bx, by);
-    }
-    const dirt = snow ? ['150,160,176', '196,204,216'] : desert ? ['168,132,90', '232,206,160'] : cave ? ['48,44,42', '104,96,88'] : ['104,84,52', '176,148,104'];
-    // Each layer is drawn solid on a spare canvas (short pieces of differing width), then laid over
-    // the ground at its own strength — so pieces overlapping at a joint don't show as darker blobs.
-    const spare = document.createElement('canvas');
-    spare.width = W; spare.height = H;
-    const sc = spare.getContext('2d');
-    sc.lineCap = 'round'; sc.lineJoin = 'round';
-    for (const [col, width, alpha] of [[dirt[0], 0.66, 0.28], [dirt[0], 0.48, 0.5], [dirt[1], 0.3, 0.78]]) {
-      sc.clearRect(0, 0, W, H);
-      sc.strokeStyle = 'rgb(' + col + ')';
-      for (const pts of lines) for (let i = 1; i < pts.length; i++) {
-        sc.lineWidth = s * width * (pts[i - 1][2] + pts[i][2]) / 2;
-        sc.beginPath(); sc.moveTo(pts[i - 1][0], pts[i - 1][1]); sc.lineTo(pts[i][0], pts[i][1]); sc.stroke();
-      }
-      ctx.globalAlpha = alpha; ctx.drawImage(spare, 0, 0); ctx.globalAlpha = 1;
-    }
-    // Cart ruts: two faint lines that follow the track, broken here and there, and gone near the joints.
-    ctx.strokeStyle = 'rgba(40,28,14,0.24)'; ctx.lineWidth = 1.2;
+    const each = (fn) => { for (const pts of roadLines) for (let i = 1; i < pts.length - 1; i++) {
+      const [xa, ya] = pts[i - 1], [xb, yb] = pts[i + 1], l = Math.hypot(xb - xa, yb - ya) || 1;
+      fn(pts[i][0], pts[i][1], -(yb - ya) / l, (xb - xa) / l, pts[i][2], i, pts.length);
+    } };
+    ctx.strokeStyle = snow ? 'rgba(70,84,110,0.3)' : 'rgba(44,30,14,0.34)'; ctx.lineWidth = Math.max(1.2, s * 0.02);
     ctx.beginPath();
-    for (const pts of lines) for (const off of [-0.075, 0.075]) {
-      let pen = false;
-      for (let i = 1; i < pts.length - 1; i++) {
-        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i + 1], l = Math.hypot(x1 - x0, y1 - y0) || 1;
-        const x = pts[i][0] - (y1 - y0) / l * s * off, y = pts[i][1] + (x1 - x0) / l * s * off;
-        const gap = hash(Math.round(x), Math.round(y), seed + 97) < 0.18 || i < 2 || i > pts.length - 3;
-        if (gap) { pen = false; continue; }
-        if (pen) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    for (const off of [-0.085, 0.085]) {
+      let pen = false, last = -9;
+      each((x, y, nx, ny, wf, i, n) => {
+        if (i !== last + 1) pen = false;
+        last = i;
+        const px = x + nx * s * off, py = y + ny * s * off;
+        if (hash(Math.round(px), Math.round(py), seed + 97) < 0.16 || i < 2 || i > n - 3) { pen = false; return; }
+        if (pen) ctx.lineTo(px, py); else ctx.moveTo(px, py);
         pen = true;
-      }
+      });
     }
     ctx.stroke();
+    if (!snow && !desert && !cave) each((x, y, nx, ny, wf) => {                 // the grass strip down the middle
+      if (hash(Math.round(x * 3), Math.round(y * 3), seed + 98) > 0.55) return;
+      for (let k = 0; k < 3; k++) {
+        const j = (hash(Math.round(x) + k, Math.round(y), seed + 99) - 0.5) * s * 0.07, a2 = hash(Math.round(x), Math.round(y) + k, seed + 100) * 6.283;
+        ctx.strokeStyle = k % 2 ? 'rgba(96,132,58,0.6)' : 'rgba(62,98,44,0.55)'; ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.moveTo(x + nx * j, y + ny * j); ctx.lineTo(x + nx * j + Math.cos(a2) * s * 0.035, y + ny * j - Math.abs(Math.sin(a2)) * s * 0.05); ctx.stroke();
+      }
+    });
+    each((x, y, nx, ny, wf) => {                                                  // stones along the edges
+      const h = hash(Math.round(x * 2), Math.round(y * 2), seed + 101);
+      if (h > 0.2) return;
+      const side = h < 0.1 ? -1 : 1, off = s * (0.17 + h * 0.5) * wf, pr = s * (0.014 + h * 0.07);
+      const px = x + nx * off * side, py = y + ny * off * side;
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.arc(px + pr * 0.4, py + pr * 0.5, pr, 0, 6.3); ctx.fill();
+      ctx.fillStyle = cave ? '#8f877d' : desert ? '#c9a57e' : '#b3ab9b'; ctx.beginPath(); ctx.arc(px, py, pr, 0, 6.3); ctx.fill();
+    });
+    if (!desert) each((x, y, nx, ny, wf) => {                                      // a puddle where it is wide and churned
+      if (wf < 1.12 || hash(Math.round(x), Math.round(y), seed + 102) > 0.1) return;
+      const a2 = Math.atan2(nx, -ny), rx = s * 0.13, ry = s * 0.065;
+      ctx.fillStyle = snow ? 'rgba(206,224,240,0.85)' : cave ? 'rgba(30,70,80,0.75)' : 'rgba(58,74,84,0.72)';
+      ctx.beginPath(); ctx.ellipse(x, y, rx, ry, a2, 0, 6.3); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(x - rx * 0.1, y - ry * 0.2, rx * 0.55, ry * 0.5, a2, 3.6, 5.4); ctx.stroke();
+    });
   }
 
   // Meadow details: grass tufts, a few flowers.
