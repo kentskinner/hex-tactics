@@ -375,6 +375,18 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
       }
       if (!kept.has(key(c.q, c.r))) { const [x, y] = centre(c); segs.push([x, y, x + 0.01, y, x, y]); }      // a lone road hex
     }
+    for (const c of roads) {                                           // a road that ends on the board's edge carries on off the map
+      const links = kept.get(key(c.q, c.r));
+      if (!links || links.size !== 1) continue;
+      const [x, y] = centre(c), [lq, lr] = [...links][0].split(',').map(Number), [fx, fy] = centre({ q: lq, r: lr });
+      let best = null, bestDot = 0.2;
+      for (const [dq, dr] of N) {
+        if (map.cells[key(c.q + dq, c.r + dr)]) continue;             // only toward hexes that aren't there
+        const [ox, oy] = centre({ q: c.q + dq, r: c.r + dr }), dot = ((ox - x) * (x - fx) + (oy - y) * (y - fy)) / (Math.hypot(ox - x, oy - y) * Math.hypot(x - fx, y - fy));
+        if (dot > bestDot) { bestDot = dot; best = [ox - x, oy - y]; }
+      }
+      if (best) seg(x, y, x + best[0] * 2.2, y + best[1] * 2.2, 3);
+    }
     for (const bld of buildings(sorted)) {                             // one path to each building, from the nearest road hex
       let bx = 0, by = 0;
       for (const c of bld.cells) { const [x, y] = centre(c); bx += x / bld.cells.length; by += y / bld.cells.length; }
