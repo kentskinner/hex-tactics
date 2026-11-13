@@ -385,11 +385,22 @@ export class Renderer {
       this.wx = this.wxKind === 'snow' ? many(Math.min(320, area / 6000), () => ({ x: R() * w, y: R() * h, z: 0.4 + R() * 0.6, ph: R() * 6.3 }))
         : this.wxKind === 'sand' ? many(Math.min(140, area / 12000), () => ({ x: R() * w, y: R() * h, z: 0.5 + R() * 0.5, len: 14 + R() * 30 }))
         : this.wxKind === 'motes' ? many(Math.min(70, area / 22000), () => ({ x: R() * w, y: R() * h, z: 0.4 + R() * 0.6, ph: R() * 6.3, hue: R() }))
-        : this.wxKind === 'clouds' ? [...many(5, () => ({ cloud: true, x: R() * w, y: R() * h, r: 160 + R() * 240 })), ...many(Math.min(40, area / 40000), () => ({ x: R() * w, y: R() * h, z: 0.4 + R() * 0.6, ph: R() * 6.3 }))]
+        : this.wxKind === 'clouds' ? [...many(6, () => ({ cloud: true, x: R() * w, y: R() * h, r: 150 + R() * 170,
+            puffs: many(4 + R() * 3, () => [(R() - 0.5) * 1.5, (R() - 0.5) * 0.8, 0.45 + R() * 0.45]) })), ...many(Math.min(40, area / 40000), () => ({ x: R() * w, y: R() * h, z: 0.4 + R() * 0.6, ph: R() * 6.3 }))]
         : [];
     }
     const P = this.wx, t = now / 1000;
     ctx.save();
+    // Weather stays over the map: the whole painted image when there is one, otherwise the hexes themselves.
+    const bd = this.flat ? this.backdrop : null;
+    ctx.beginPath();
+    if (bd) {
+      const k = (R3 * this.S) / bd.hexPx;
+      ctx.rect(this.ox - bd.ox * k, this.oy - bd.oy * k, bd.img.width * k, bd.img.height * k);
+    } else {
+      for (const g of this.geo.values()) { g.pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); }
+    }
+    ctx.clip();
     if (this.wxKind === 'snow') {
       ctx.fillStyle = '#ffffff';
       for (const p of P) {
@@ -423,13 +434,17 @@ export class Renderer {
     } else if (this.wxKind === 'clouds') {
       for (const p of P) {
         if (p.cloud) {                                               // a cloud's shadow sliding over the land
-          p.x += 14 * dt; p.y += 5 * dt;
-          if (p.x - p.r > w) { p.x = -p.r; p.y = Math.random() * h; }
-          if (p.y - p.r > h) p.y = -p.r;
-          const g = ctx.createRadialGradient(p.x, p.y, p.r * 0.2, p.x, p.y, p.r);
-          g.addColorStop(0, 'rgba(10,20,30,0.16)'); g.addColorStop(1, 'rgba(10,20,30,0)');
-          ctx.globalAlpha = 1; ctx.fillStyle = g;
-          ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r * 0.7, 0, 0, 6.3); ctx.fill();
+          p.x += 26 * dt; p.y += 9 * dt;
+          if (p.x - p.r * 2 > w) { p.x = -p.r * 2; p.y = Math.random() * h; }
+          if (p.y - p.r * 2 > h) p.y = -p.r * 2;
+          ctx.globalAlpha = 1;
+          for (const [dx, dy, k] of p.puffs) {                       // a few overlapping puffs make one cloud
+            const cx = p.x + dx * p.r, cy = p.y + dy * p.r, rr = p.r * k;
+            const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
+            g.addColorStop(0, 'rgba(8,16,28,0.2)'); g.addColorStop(0.55, 'rgba(8,16,28,0.15)'); g.addColorStop(1, 'rgba(8,16,28,0)');
+            ctx.fillStyle = g;
+            ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 6.3); ctx.fill();
+          }
         } else {                                                     // pollen on the breeze
           p.x += (12 + 10 * p.z + Math.sin(t * 0.7 + p.ph) * 8) * dt; p.y += Math.sin(t * 0.5 + p.ph) * 6 * dt;
           if (p.x > w + 4) { p.x = -4; p.y = Math.random() * h; }
