@@ -2,6 +2,7 @@
 import { CLASSES, footprint, isBig } from './engine.js';
 import { key, DIRS, hexRound } from './hex.js';
 import { buildings } from './paint.js';
+import { paintedTokens } from './tokens.js';
 
 // Two views share this code. Top-down (flat): undistorted hexes, height shown by shade, a number
 // and contour/cliff edges. 2.5D: ground plane squashed vertically and hexes raised by elevation.
@@ -45,6 +46,8 @@ export class Renderer {
       }));
     }));
     this.tokens = tokens;
+    this.painted = paintedTokens();                  // top-down painted figures, for the classes that have one
+    this.facing = new Map();                         // unit id -> which way it faces on screen (set by the UI as units act)
   }
 
   layout(map) {
@@ -864,11 +867,18 @@ export class Renderer {
     const ctx = this.ctx, S = this.S, col = TEAM[u.team], cls = CLASSES[u.cls];
     if (this.flat) {                                 // round token that stays inside its hex
       const f = u.hp / cls.hp, img = this.tokens?.[u.cls]?.[u.team], r = S * (img ? 0.56 : 0.46);
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      ctx.beginPath(); ctx.ellipse(x + r * 0.1, y + r * 0.16, r, r, 0, 0, Math.PI * 2); ctx.fill();
+      // A painted figure when there is one — but a one-hex figure too small to make out falls back to its coin.
+      const figure = (isBig(u) || S >= 20) && this.painted ? this.painted.get(u.cls, u.team, this.facing?.get(u.id)) : null;
+      if (!figure) {
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath(); ctx.ellipse(x + r * 0.1, y + r * 0.16, r, r, 0, 0, Math.PI * 2); ctx.fill();
+      }
       ctx.save();
       if (u.acted && u.team === state.turn && state.winner === null) ctx.filter = 'saturate(0.25) brightness(0.8)';
-      if (img) {
+      if (figure) {
+        const half = S * 0.56 * figure.scale;
+        ctx.drawImage(figure.canvas, x - half, y - half, half * 2, half * 2);
+      } else if (img) {
         ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
       } else {                                       // fallback until the token art has loaded
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);

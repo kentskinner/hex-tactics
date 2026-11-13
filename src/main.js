@@ -68,6 +68,7 @@ function newGame() {
   sel = reach = undo = hover = casting = null;
   celebrated = false;
   view.anim = null; view.floats = []; view.fx = []; view.shake = null; view.scorch = new Map();
+  R.facing?.clear();
   makeAIs();
   R.pad = editing ? 2 : 0;
   R.layout(state.map);
@@ -394,6 +395,16 @@ function landBlow(victim, dmg, killed, color) {
   view.floats.push({ ...at, text: '-' + dmg, t0: now });
 }
 
+// Turn a painted figure to face a hex or unit, in quick steps (the shorter way round).
+async function face(u, target) {
+  if (!R.painted?.has(u.cls) || !R.flat) return;
+  const a = R.centre(spot(u)), b = R.centre(target);
+  if (!a || !b || (Math.abs(b.x - a.x) < 1 && Math.abs(b.y - a.y) < 1)) return;
+  const to = Math.atan2(b.y - a.y, b.x - a.x), from = R.facing.get(u.id) ?? R.painted.facing(u.team);
+  const turn = ((to - from + Math.PI * 3) % (Math.PI * 2)) - Math.PI, steps = Math.max(1, Math.round(Math.abs(turn) / (Math.PI / 12)));
+  for (let i = 1; i <= steps; i++) { R.facing.set(u.id, from + turn * i / steps); if (steps > 1) await sleep(26 / speed()); }
+}
+
 // Apply one action with animation.
 async function perform(a) {
   const g = gen;
@@ -423,6 +434,7 @@ async function perform(a) {
     }
     for (let i = 1; shown && i < path.length && g === gen; i++) {
       const p0 = R.centre({ cls: u.cls, ...path[i - 1] }), p1 = R.centre({ cls: u.cls, ...path[i] });
+      if (R.painted?.has(u.cls) && Math.hypot(p1.x - p0.x, p1.y - p0.y) > R.S * 0.5) R.facing.set(u.id, Math.atan2(p1.y - p0.y, p1.x - p0.x));   // look where it is going
       if (shown && (!digs || i % 2)) play(digs ? 'rumble' : 'step');
       const ms = (E.isBig(u) ? 80 : 130) / speed(), t0 = performance.now();
       for (let t = 0; t < 1 && g === gen;) {
@@ -450,6 +462,7 @@ async function perform(a) {
     const seen = obs.units.some((x) => x.id === u.id);      // under fog, don't show where an unseen shot came from
     const who = seen ? label(u) : 'An unseen enemy';
 
+    if (seen) await face(u, spot(t));
     const color = await windUp(g, attacker, defender, seen);
     if (g !== gen) return;
     const ev = E.applyAction(state, a);
@@ -481,6 +494,7 @@ async function perform(a) {
     const fx = (e) => view.fx.push({ t0: now(), ...e });
 
     if (seen) {
+      if (!spell.blink) await face(u, at);                  // turn toward the aim first
       fx({ type: 'charge', at: from, color, dur: 260 / sp });
       play('charge');
       await sleep(260 / sp);
