@@ -30,7 +30,8 @@ export function houseLayout(q, r) {
 
 // The buildings a set of cells makes. House hexes next to each other join up: three that all touch
 // become a manor, two a long hall, the rest stand alone. Each building is
-//   { cells, kind: 'house' | 'hall' | 'manor', ang, w, d, thatch, chim: [{t, off, dx, dy}] }
+//   { cells, kind: 'house' | 'hall' | 'manor' | 'tower', ang, w, d, thatch, chim: [{t, off, dx, dy}] }
+// (a tower hex is a building of its own: round, with no chimney)
 // with sizes in units of the hex size and the chimneys given from the building's middle (the
 // average of its hexes' centres). Deterministic, so the painter and the smoke agree.
 export function buildings(cellList) {
@@ -66,6 +67,7 @@ export function buildings(cellList) {
     const lay = houseLayout(c.q, c.r);
     out.push({ cells: [c], kind: 'house', ang: lay.ang, w: lay.w, d: lay.d, thatch: lay.thatch, chim: [{ t: lay.t, off: lay.off, dx: lay.dx, dy: lay.dy }] });
   }
+  for (const c of cellList) if (c.t === 'tower') out.push({ cells: [c], kind: 'tower', ang: 0, w: 0.5, d: 0.5, thatch: false, chim: [] });
   return out;
 }
 
@@ -670,6 +672,54 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
     const yard = ctx.createRadialGradient(cx, cy, reach * 0.3, cx, cy, reach);
     yard.addColorStop(0, snow ? 'rgba(150,160,175,0.45)' : cave ? 'rgba(60,54,50,0.5)' : 'rgba(124,98,62,0.55)'); yard.addColorStop(1, 'rgba(124,98,62,0)');
     ctx.fillStyle = yard; ctx.beginPath(); ctx.arc(cx, cy, reach, 0, 6.3); ctx.fill();
+    if (b.kind === 'tower') {
+      // A round tower from straight above: a long shadow (it is tall), the stone drum, the gallery
+      // with its rail, the glazed lantern and a small red cap. By the sea it is a lighthouse, and
+      // throws a pale beam out over the water.
+      const R = s * 0.62;
+      const stoneA = snow ? '#f4f6f8' : cave ? '#9a948a' : alien ? '#d6dde4' : '#f1ece0', stoneB = snow ? '#aab2be' : cave ? '#565048' : alien ? '#7d8a98' : '#b9b09c';
+      let wx = 0, wy = 0, wn = 0;                                       // which way is the sea?
+      for (const o of sorted) {
+        if (o.t !== 'water') continue;
+        const [ox, oy] = centre(o), dd = Math.hypot(ox - cx, oy - cy);
+        if (dd < s * 7) { wx += (ox - cx) / dd; wy += (oy - cy) / dd; wn++; }
+      }
+      if (wn >= 6) {                                                   // the beam
+        const a = Math.atan2(wy, wx), L = s * 4.6;
+        const beam = ctx.createRadialGradient(cx, cy, R * 0.4, cx, cy, L);
+        beam.addColorStop(0, 'rgba(255,244,190,0.42)'); beam.addColorStop(1, 'rgba(255,244,190,0)');
+        ctx.fillStyle = beam;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, L, a - 0.2, a + 0.2); ctx.closePath(); ctx.fill();
+      }
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';                                // the shadow of the whole height
+      ctx.beginPath(); ctx.moveTo(cx - R * 0.7, cy + R * 0.7); ctx.lineTo(cx + s * 1.05, cy + s * 1.5); ctx.lineTo(cx + s * 1.5, cy + s * 1.2); ctx.lineTo(cx + R * 0.7, cy - R * 0.7); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + s * 1.28, cy + s * 1.36, R * 0.42, 0, 6.3); ctx.fill();
+      ctx.restore();
+      const ring = (r, fill, lw = 1.4) => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.3); ctx.fillStyle = fill; ctx.fill(); if (lw) { ctx.strokeStyle = 'rgba(24,16,10,0.85)'; ctx.lineWidth = lw; ctx.stroke(); } };
+      const drum = ctx.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
+      drum.addColorStop(0, stoneA); drum.addColorStop(1, stoneB);
+      ring(R, drum, 1.8);                                              // the foot of the tower
+      ctx.strokeStyle = 'rgba(60,50,40,0.28)'; ctx.lineWidth = 1;      // courses of stone
+      for (const k of [0.9, 0.8]) { ctx.beginPath(); ctx.arc(cx, cy, R * k, 0, 6.3); ctx.stroke(); }
+      for (let i = 0; i < 16; i++) { const a = i * 0.3927; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * R * 0.8, cy + Math.sin(a) * R * 0.8); ctx.lineTo(cx + Math.cos(a) * R * 0.99, cy + Math.sin(a) * R * 0.99); ctx.stroke(); }
+      ring(R * 0.74, snow ? '#8a94a2' : '#7b7466');                    // the gallery deck
+      ctx.strokeStyle = 'rgba(20,14,10,0.7)'; ctx.lineWidth = 1;       // its rail posts
+      for (let i = 0; i < 20; i++) { const a = i * 0.31416; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * R * 0.66, cy + Math.sin(a) * R * 0.66); ctx.lineTo(cx + Math.cos(a) * R * 0.74, cy + Math.sin(a) * R * 0.74); ctx.stroke(); }
+      const glow = ctx.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 1.5);
+      glow.addColorStop(0, 'rgba(255,240,170,0.5)'); glow.addColorStop(1, 'rgba(255,240,170,0)');
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, R * 1.5, 0, 6.3); ctx.fill();
+      const glass = ctx.createRadialGradient(cx - R * 0.15, cy - R * 0.15, R * 0.05, cx, cy, R * 0.5);
+      glass.addColorStop(0, '#fffbe0'); glass.addColorStop(0.6, '#ffe07a'); glass.addColorStop(1, '#c99a3a');
+      ring(R * 0.5, glass);                                            // the lantern room
+      ctx.strokeStyle = 'rgba(30,22,14,0.75)'; ctx.lineWidth = 1.2;    // glazing bars
+      for (let i = 0; i < 8; i++) { const a = i * 0.7854 + 0.39; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * R * 0.27, cy + Math.sin(a) * R * 0.27); ctx.lineTo(cx + Math.cos(a) * R * 0.5, cy + Math.sin(a) * R * 0.5); ctx.stroke(); }
+      const cap = ctx.createRadialGradient(cx - R * 0.1, cy - R * 0.1, R * 0.02, cx, cy, R * 0.28);
+      cap.addColorStop(0, snow ? '#ffffff' : '#e8846a'); cap.addColorStop(1, snow ? '#c2ccdb' : '#8a2f22');
+      ring(R * 0.28, cap);                                             // the cap
+      ring(R * 0.06, '#2a1c12', 0);
+      continue;
+    }
     const roof = snow ? ['#f6f9fd', '#c2ccdb', '#8b97aa'] : alien ? ['#d3dbe2', '#93a0ad', '#56616e'] : desert ? ['#e2c596', '#cfae7c', '#9c7d52'] : cave ? ['#8a857f', '#57534f', '#3a3734']
       : b.thatch ? ['#d2b56a', '#9a7d3c', '#6d5626'] : b.kind === 'manor' ? ['#8f9aa6', '#5c6672', '#3c444e'] : ['#c06f45', '#853f27', '#5e2a1a'];
     ctx.save();

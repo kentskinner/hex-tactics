@@ -72,7 +72,7 @@ prefab outpost against nine aliens: six stalkers, two spitters and a brute. Diff
 between two Plan samplers the humans won 8 of 12, and one unit either way swings it hard.
 
 `gullrock` is a stretch of coast (459 hexes, meadow), mirrored left to right: wooded downs in the north, a coast road
-joining two fishing hamlets with a stream and a bridge in front of each, a headland with a lighthouse on its height,
+joining two fishing hamlets with a stream and a bridge in front of each, a headland with a lighthouse (a tower hex) on its height,
 and tidal flats to the south — shallows anyone can wade, slowly and in the open — with sandbars, sea stacks and a
 wreck. Armies of seven, including a cleric.
 
@@ -91,6 +91,9 @@ The map file format is documented at the top of the "Map files" section in `src/
 
 - Each turn, every unit may move once and then attack (or wait). Eliminate the other team; round 30 is a draw.
 - **Terrain** — forest: move cost 2, cover 1 · ruins: cover 2 · stalagmites (painted as standing stones above ground): move cost 2, cover 1, and only one-hex creatures fit among them (big ones can't stand there; flyers and burrowers may pass) · water: move cost 2, occupant takes +1 and deals -1 · lava: impassable on foot and nobody can stand in it, but it does not block sight and flyers cross it · house: move cost 2, cover 2, one-hex creatures only, and it blocks sight lines that pass through it; house hexes next to each other are painted as one larger building (two make a long hall, three in a triangle a manor), though the rules still treat each hex on its own · road: plain ground, painted as a track that joins neighbouring road hexes, bridges and house doors · rock: impassable, blocks sight.
+- **Tower** — the same rules as a house (move cost 2, cover 2, one-hex creatures only, blocks sight through it), painted
+  as a round stone tower seen from above. Near water it is a lighthouse and throws a beam out to sea. Editor: Terrain →
+  Tower / lighthouse.
 - **Height** (0–3) — climbing costs +1 move, a 2-level step is a cliff. Attacks get +1 damage per level above the target (-1 per level below, max 2). Archers get +1 range from high ground. Hills block line of sight.
 - **Objective** — *Eliminate* (default), or *Hold the points*: the map has control points (ringed, with a
   pennant). At the end of each team's turn, a point with a unit standing on it goes to that unit's team and

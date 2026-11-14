@@ -13,6 +13,7 @@ const TOP = {
   spikes: ['#8d8f86', '#9a9c92', '#a8aa9f', '#b6b8ac'],
   road: ['#b9a070', '#c2aa7c', '#cbb488', '#d4be94'],
   house: ['#b98a5e', '#c2946a', '#cb9e76', '#d4a882'],
+  tower: ['#a9a59a', '#b3afa4', '#bdb9ae', '#c7c3b8'],
   rock: ['#7d8a80', '#8a968b', '#98a397', '#a6b0a3'],
   water: ['#4a93cf', '#4a93cf', '#4a93cf', '#4a93cf'],
   lava: ['#e8641c', '#e8641c', '#e8641c', '#e8641c'],
@@ -773,7 +774,13 @@ export class Renderer {
   decor(c, g) {
     const ctx = this.ctx, S = this.S, { x, y } = g;
     ctx.lineWidth = 1;
-    if (c.t === 'house') {                           // walls, a pitched roof and a chimney
+    if (c.t === 'tower') {                           // a round tower with a lamp
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillStyle = '#e6e0d0'; ctx.beginPath(); ctx.arc(x, y, S * 0.46, 0, 6.3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#8a8478'; ctx.beginPath(); ctx.arc(x, y, S * 0.32, 0, 6.3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffe680'; ctx.beginPath(); ctx.arc(x, y, S * 0.2, 0, 6.3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#b8402c'; ctx.beginPath(); ctx.arc(x, y, S * 0.09, 0, 6.3); ctx.fill();
+    } else if (c.t === 'house') {                    // walls, a pitched roof and a chimney
       const w = S * 0.5, wall = S * 0.34, top = y - S * 0.1;
       ctx.strokeStyle = 'rgba(0,0,0,0.45)';
       ctx.fillStyle = '#e4d6b8'; ctx.fillRect(x - w, top, 2 * w, wall); ctx.strokeRect(x - w, top, 2 * w, wall);

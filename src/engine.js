@@ -36,6 +36,8 @@ export const TERRAIN = {
   // House hexes next to each other are drawn as one larger building (two make a long hall, three in
   // a triangle a manor); the rules still treat each hex on its own.
   house:  { name: 'House',  cost: 2, cover: 2, narrow: true, tall: true },
+  // Tower: a round stone tower — a lighthouse when it stands by the sea. Same rules as a house.
+  tower:  { name: 'Tower',  cost: 2, cover: 2, narrow: true, tall: true },
   rock:   { name: 'Rock',   cost: Infinity, cover: 0, tall: true },   // impassable, blocks line of sight
 };
 
