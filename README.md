@@ -71,6 +71,11 @@ heroes between two Plan samplers; Greedy heroes lose.
 prefab outpost against nine aliens: six stalkers, two spitters and a brute. Different armies on an asymmetric map;
 between two Plan samplers the humans won 8 of 12, and one unit either way swings it hard.
 
+`gullrock` is a stretch of coast (459 hexes, meadow), mirrored left to right: wooded downs in the north, a coast road
+joining two fishing hamlets with a stream and a bridge in front of each, a headland with a lighthouse on its height,
+and tidal flats to the south — shallows anyone can wade, slowly and in the open — with sandbars, sea stacks and a
+wreck. Armies of seven, including a cleric.
+
 `millbrook` is a village (337 hexes, meadow): houses along a road on both banks of a stream, a stone bridge at the
 centre and a ford above and below. Smoke rises from the chimneys when Weather is on.
 
