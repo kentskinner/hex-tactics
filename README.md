@@ -82,6 +82,11 @@ climb four terraces — by the switchback road, or by the goat path past a yeti'
 with a bell tower on the summit, which Red's six hold from above. Blue must hold the abbey court at the end of two
 of its turns within 20 rounds. Between two Plan samplers it came out 5–5 over ten games.
 
+`tycho` is a vast alien world (839 hexes): a human base with a comms tower and a landing field in the west, the aliens'
+nesting ground in the east, and between them mesas, acid lakes, crystal fields and a crashed starship ringed by acid.
+The ground is a half-turn copy of itself; the armies are not: twelve humans (six marines, two snipers, two drones,
+two mechs) against sixteen aliens (eleven stalkers, three spitters, two brutes). Between two Plan samplers the humans won 6 of 8; one more stalker and the aliens won 7 of 8.
+
 `millbrook` is a village (337 hexes, meadow): houses along a road on both banks of a stream, a stone bridge at the
 centre and a ford above and below. Smoke rises from the chimneys when Weather is on.
 
