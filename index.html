@@ -75,6 +75,7 @@
     <label><span><input id="counters" type="checkbox" checked> Counter-attacks</span></label>
     <label><span><input id="zoc" type="checkbox" checked> Zones of control</span></label>
     <label><span><input id="fog" type="checkbox"> Fog of war</span></label>
+    <label title="How far units see under fog of war. Line of sight: as far as the view is clear — hills, rock, houses and woods block it (caves stay dark and use sight ranges). Sight ranges: each unit sees only a few hexes.">Sight <select id="sight"><option value="los">Line of sight</option><option value="range">Sight ranges</option></select></label>
     <label title="Off: each AI is only told what its own units can see. On: AIs are given the full board."><span><input id="cheat" type="checkbox"> AIs see through fog</span></label>
     <label title="Whose eyes the screen shows under fog of war, including the faded markers where that side last saw each enemy. Auto: the human player's (everything when two AIs play).">Fog view <select id="fogView"><option value="auto">Auto (human's; all if AI v AI)</option><option value="blue">Blue's view</option><option value="red">Red's view</option><option value="all">Everything</option></select></label>
   </section>
@@ -84,7 +85,7 @@
     <label>Seed <input id="seed" type="number" value="1" min="1"></label>
     <label title="Size of random maps (hexes from the centre to the edge).">Size <select id="size"><option value="6">Standard (127 hexes)</option><option value="9">Large (271)</option><option value="12">Huge (469)</option><option value="16">Vast (817)</option></select></label>
     <div class="row"><button id="new">Restart</button><button id="rand">Random map</button></div>
-    <div class="row"><button id="view"></button><button id="edit">Edit map</button></div>
+    <div class="row"><button id="edit">Edit map</button></div>
   </section>
   <section id="editor" hidden>
     <h2>Editor</h2>
@@ -92,7 +93,7 @@
     <label style="margin-top:8px">Spawn class
       <select id="edCls">
         <option value="auto">Auto</option><option value="soldier">Soldier</option>
-        <option value="archer">Archer</option><option value="scout">Scout</option><option value="wizard">Wizard</option><option value="ogre">Ogre (3 hexes)</option><option value="dragon">Dragon (7 hexes)</option><option value="spider">Giant spider</option><option value="bat">Bat swarm</option><option value="worm">Rock worm (3 hexes)</option><option value="troll">Cave troll</option><option value="goblin">Goblin</option>
+        <option value="archer">Archer</option><option value="scout">Scout</option><option value="wizard">Wizard</option><option value="ogre">Ogre (3 hexes)</option><option value="dragon">Dragon (7 hexes)</option><option value="spider">Giant spider</option><option value="bat">Bat swarm</option><option value="worm">Rock worm (3 hexes)</option><option value="troll">Cave troll</option><option value="goblin">Goblin</option><option value="catapult">Catapult</option><option value="cleric">Cleric</option>
       </select></label>
     <label>Blank board
       <span><input id="edCols" class="sm" type="number" min="2" max="40" value="15"> ×
@@ -126,7 +127,7 @@
   <h2 style="margin:0">Log</h2>
   <div id="log"></div>
   <div class="help">Click a unit, then a blue hex to move or a red enemy to attack. Hover an enemy to see where it can strike next turn.
-    <kbd>E</kbd> end turn · <kbd>U</kbd> undo move · <kbd>V</kbd> switch view · <kbd>1</kbd>–<kbd>3</kbd> wizard spells · <kbd>Esc</kbd> deselect</div>
+    <kbd>E</kbd> end turn · <kbd>U</kbd> undo move · <kbd>1</kbd>–<kbd>3</kbd> spells · <kbd>Esc</kbd> deselect</div>
 </aside>
 <script type="module" src="src/main.js"></script>
 </body>

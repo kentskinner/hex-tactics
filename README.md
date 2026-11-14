@@ -1,13 +1,12 @@
 # Hex Tactics
 
-A small turn-based tactics game on a 2.5D hex grid, built as a sandbox for trying out AI techniques.
+A small turn-based tactics game on a hex grid, built as a sandbox for trying out AI techniques.
 No dependencies beyond Node.
 
     node server.js                              # play at http://localhost:5173
     node arena.js sampler greedy --games 20     # headless AI-vs-AI
 
-Press `V` to switch between the top-down view (default; height shown as a number, shading and
-contour/cliff edges) and the 2.5D view. Hover an enemy to see where it can strike next turn; with an
+The view is top-down (height shown as a number, shading and contour/cliff edges). Hover an enemy to see where it can strike next turn; with an
 archer selected, hovering an enemy draws the sight line and marks what blocks it.
 
 **Display** — "Grid lines" fades the hex grid; "Height edges" switches off the dark slope and cliff lines of the
@@ -59,9 +58,14 @@ crossed on foot only by a wide basalt bridge in the middle and a narrow span to 
 each side, a watchtower north and south each held by a neutral ogre, mountain ridges, pine belts and two cairn rings
 with a troll in each. Five control points, armies of ten.
 
-`stonewatch` is the siege scenario (345 hexes, meadow): Red's five hold a cliff-sided hill fort with battlements, a
-two-hex gate ramp behind a moat and a one-hex postern; Blue attacks with twelve and must hold the keep at the end of
-two of its turns within 20 rounds. Tuned without dragons to roughly even odds between two Plan samplers.
+`stonewatch` is the siege scenario (345 hexes, meadow): Red's six, with a catapult, hold a cliff-sided hill fort with
+battlements, a two-hex gate ramp behind a moat and a one-hex postern; Blue attacks with fourteen, two catapults among
+them, and must hold the keep at the end of two of its turns within 20 rounds. Tuned without dragons to roughly even odds between two Plan samplers.
+
+`goblinwarren` is the raid scenario (345 hexes, cave): four heroes — soldier, archer, wizard and cleric — enter by the
+west cave and must clear out a goblin colony within 24 rounds: fourteen goblins, an ogre, and the dragon that rules
+them from the great hall. A neutral giant spider lairs in a back passage the goblins shun. Tuned to about 2:1 for the
+heroes between two Plan samplers; Greedy heroes lose.
 
 `millbrook` is a village (337 hexes, meadow): houses along a road on both banks of a stream, a stone bridge at the
 centre and a ford above and below. Smoke rises from the chimneys when Weather is on.
@@ -90,6 +94,11 @@ The map file format is documented at the top of the "Map files" section in `src/
   wins on reaching the target (default 2) or by wiping the defenders out; the defender wins by wiping the attackers out
   or by lasting to the round limit. A map sets it up with `"siege": { "defender": 1, "target": 2, "rounds": 20 }` and is
   then played as a siege by default; "Siege (Red defends)" in the sidebar or `--siege` in the arena plays any map that way.
+- **Raid** (asymmetric) — the attackers must wipe the defenders out before the round limit; otherwise the defenders
+  win. A map sets it up with `"raid": { "defender": 1, "rounds": 24 }`; "Raid (clear Red out)" in the sidebar or `--raid`
+  in the arena plays any map that way. The Greedy AI defending a raid keeps each unit at its post until a raider comes
+  within about ten moves. A spawn marked `"hero": true` gives a unit double hit points (a gold star marks it).
+  Scenario maps (siege, raid) switch the Dragons setting off when loaded.
   Maps and armies need not be symmetric: every spawn can name its class. The arena's last line reports wins by side, so
   running one AI against itself (`node arena.js sampler sampler --map stonewatch`) shows how lopsided a scenario is.
   `evaluate` and Greedy know the mode: the attacker is on a clock, and a Greedy defender stays by the keep.
@@ -103,7 +112,10 @@ The map file format is documented at the top of the "Map files" section in `src/
 - Both can be switched off in the sidebar, or with `--no-counters` / `--no-zoc` in the arena.
 - **Units** — Soldier (14 hp, 5 atk, move 3), Archer (9 hp, 4 atk, move 3, range 2–4), Scout (10 hp, 4 atk, move 5),
   Wizard (8 hp, 4 atk, move 3, range 1–3, lightning ignores cover), Ogre (24 hp, 6 atk, move 3, three hexes).
-  Each side fields one of each.
+  Each side fields one of each. Scouts are skirmishers: enemy zones of control don't stop them.
+  Scenario units: Goblin (8 hp, 4 atk, move 4), Cleric (12 hp, 4 atk, move 3; Heal restores 5 hp to a friend within
+  2 hexes or to itself, cooldown 3), Catapult (10 hp, 4 atk, move 2, range 3–7: lobs its shot, so it needs no sight
+  line and ignores cover and height, but it can't shoot in a turn in which it has moved and never strikes back).
 - **Big creatures** — a class's `size` gives it a footprint of several hexes: `large` is three mutually
   adjacent hexes (the Ogre and the Rock worm), `huge` is a hex and its six neighbours (the Dragon).
   A big creature needs every hex of its footprint to be free, passable ground with no cliff under it, so
@@ -160,8 +172,13 @@ Attacks and spells are animated and have synthesised sound (`src/sound.js`, "Sou
 
 Tick "Fog of war" in the sidebar, or pass `--fog` to the arena.
 
-- A team sees every hex within a unit's sight range (Soldier 4, Archer 5, Scout 7; +1 looking down
-  from higher ground) that the unit has a clear sight line to. Vision is shared across the team.
+- "Sight" in the sidebar picks how far units see. **Line of sight** (default): in the open a unit sees every hex it
+  has a clear line to, however far — hills, rock and houses block the view, and so do woods in between unless it
+  looks over them from higher ground. Caves are dark, so there sight ranges still apply. **Sight ranges** (arena:
+  `--sight-range`): a unit sees only within its range (Soldier 4, Archer 5, Scout 7; +1 looking down from higher
+  ground). Either way vision is shared across the team.
+- With nobody in view, the Greedy AI (and the sampler's playouts) heads for where enemies were last seen, then for
+  ground it hasn't looked at since.
 - Units standing in forest stay hidden, and can't be targeted, until an enemy is adjacent.
 - A move that runs into a hidden enemy stops short of it (an ambush). Undo is disabled.
 - "Fog view" in the sidebar picks whose eyes the screen shows: Auto, Blue's, Red's or everything. Use it with two

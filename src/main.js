@@ -61,7 +61,7 @@ function newGame() {
   gen++;
   busy = false;
   const map = custom ? mapFromData(custom) : generateMap(Math.max(1, Math.floor(+$('seed').value) || 1), +$('size').value || 6);
-  state = E.createGame(map, { fog: !editing && $('fog').checked, counters: $('counters').checked, zoc: $('zoc').checked,
+  state = E.createGame(map, { fog: !editing && $('fog').checked, sight: $('sight').value, counters: $('counters').checked, zoc: $('zoc').checked,
     mode: editing ? 'eliminate' : $('mode').value, dragons: editing ? 'none' : $('dragons').value,
     monsters: editing || $('monsters').value === 'none' ? [] : $('monsters').value === 'cave' ? E.PACKS.cave : undefined,
     wild: editing || $('wild').value === 'map' ? undefined : $('wild').value === 'none' ? [] : 'auto' });
@@ -189,8 +189,8 @@ function refresh() {
   view.sight = null;
   if (me && !me.acted && hu && hu.team !== me.team && E.CLASSES[me.cls].rmax > 1) {
     const k = E.CLASSES[me.cls], d = dist(me, hu);
-    const blocker = E.losBlocker(state.map, me, hu);
-    const max = k.rmax + (E.cellAt(state.map, me).e > E.cellAt(state.map, hu).e ? 1 : 0);
+    const blocker = E.CLASSES[me.cls].arc ? null : E.losBlocker(state.map, me, hu);
+    const max = k.rmax + (!k.arc && E.cellAt(state.map, me).e > E.cellAt(state.map, hu).e ? 1 : 0);
     view.sight = { from: me, to: hu, d, blocker, status: blocker ? 'blocked' : d < k.rmin || d > max ? 'range' : 'ok' };
   }
   const dest = destAt(me);
@@ -205,7 +205,7 @@ function refresh() {
   if (casting) {
     const spell = E.SPELLS[casting], hexes = E.castTargets(obs, me, casting);
     Object.assign(view, { reach: null, reachCells: null, destCells: null, threat: null, sight: null, hoverTargets: new Set(), targets: new Set() });
-    if (spell.dmg && !spell.area && !spell.cone) {
+    if ((spell.dmg || spell.heal) && !spell.area && !spell.cone) {
       view.targets = new Set(hexes.map((h) => h.id));
     } else {
       view.castCells = new Set(hexes.map((h) => key(h.q, h.r)));
@@ -293,9 +293,11 @@ function infoText(me) {
   if (u) {
     const k = E.CLASSES[u.cls];
     lines.push(`${u.hero ? 'Hero ' : ''}${label(u)} — HP ${u.hp}/${E.maxHp(u)}`,
-      `ATK ${k.atk + (u.hero ? E.HERO_ATK : 0)} · move ${k.move} · range ${k.rmin === k.rmax ? k.rmin : k.rmin + '–' + k.rmax + ' (+1 from high ground)'}${state.fog ? ` · sight ${k.sight}` : ''}`);
+      `ATK ${k.atk + (u.hero ? E.HERO_ATK : 0)} · move ${k.move} · range ${k.rmin === k.rmax ? k.rmin : k.rmin + '–' + k.rmax + (k.arc ? '' : ' (+1 from high ground)')}${state.fog && (state.sight === 'range' || state.map.ceiling) ? ` · sight ${k.sight}` : ''}`);
     if (k.size === 'large') lines.push('Large: occupies 3 hexes, cannot fit through single-hex gaps');
-    if (k.pierce) lines.push('Lightning ignores cover');
+    if (k.arc) lines.push('Lobs its shot over walls and hills: needs no sight line, ignores cover', 'Cannot shoot after moving, and never strikes back');
+    else if (k.pierce) lines.push('Lightning ignores cover');
+    if (k.skirmish && state.zoc) lines.push('Skirmisher: slips past enemy zones of control');
     if (k.regen) lines.push(`Regenerates ${k.regen} HP at the start of each of its turns`);
     if (u.team === E.WILD) lines.push(`Neutral: attacks anyone who comes within ${E.WILD_RANGE} hexes of its lair`);
     if (k.fly) lines.push('Flies: every hex costs 1; passes over units, water and cliffs' + (state.map.ceiling ? ', but not through cave rock' : ' and rock'));
@@ -489,7 +491,7 @@ async function perform(a) {
   } else if (a.type === 'cast') {
     const u = unit(a.unit), spell = E.SPELLS[a.spell], sp = speed(), now = () => performance.now();
     const from = { q: u.q, r: u.r }, at = { q: a.q, r: a.r };
-    const color = spell.blink ? 'arcane' : a.spell === 'frost' ? 'frost' : spell.snare ? 'web' : 'fire';
+    const color = spell.blink || spell.heal ? 'arcane' : a.spell === 'frost' ? 'frost' : spell.snare ? 'web' : 'fire';
     const burnt = spell.cone ? E.coneCells(state.map, a.spell, u, at) : [];
     const known = new Set(obs.units.map((x) => x.id));       // under fog, only report what the viewer can see
     const seen = known.has(u.id), who = seen ? label(u) : 'An unseen enemy';
@@ -519,7 +521,14 @@ async function perform(a) {
     if (g !== gen) return;
     const ev = E.applyAction(state, a);
 
-    if (spell.blink) {
+    if (spell.heal) {
+      const h = ev.healed;
+      if (h && known.has(h.unit.id)) {
+        fx({ type: 'flash', at: spot(h.unit), color: '#b8ffb0', dur: 420 / sp });
+        view.floats.push({ ...spot(h.unit), text: '+' + h.amount, t0: now() });
+        log(`${who} heals ${h.unit.id === u.id ? 'itself' : label(h.unit)} for ${h.amount}`);
+      }
+    } else if (spell.blink) {
       updateFog();
       if (ev.fizzled) log(`${who}'s Blink fizzles — something is already there`);
       else if (obs.units.some((x) => x.id === u.id)) { fx({ type: 'blink', at, dur: 320 / sp }); log(`${label(u)} blinks away`); }
@@ -1081,7 +1090,6 @@ window.addEventListener('keydown', (ev) => {
   if (ev.key === 'ArrowDown') return R.panBy(0, -step);
   if (ev.key === 'e' || ev.key === 'E') endTurn();
   else if (ev.key === 'u' || ev.key === 'U') undoMove();
-  else if (ev.key === 'v' || ev.key === 'V') setView(!R.flat);
   else if (ev.key === 'Escape') { if (casting) casting = null; else sel = reach = null; refresh(); }
   else if (ev.key >= '1' && ev.key <= '9') {
     const me = sel !== null ? unit(sel) : null, sp = me && (E.CLASSES[me.cls].spells || [])[+ev.key - 1];
@@ -1099,15 +1107,11 @@ for (const t of [0, 1]) {
   s.addEventListener('change', () => { gen++; busy = false; view.anim = null; makeAIs(); sel = reach = undo = null; pump(); });
 }
 
-function setView(flat) {
-  if (editing) flat = true;                             // the editor only works top-down
-  R.flat = flat;
-  $('view').textContent = flat ? 'Switch to 2.5D' : 'Switch to top-down';
-  store('view', flat ? 'flat' : 'iso');
+function setView() {                                    // the game is top-down only now (the 2.5D view is gone)
+  R.flat = true;
   if (state) R.layout(state.map);
 }
-setView(store('view') !== 'iso');
-$('view').addEventListener('click', () => setView(!R.flat));
+setView();
 $('zoomIn').addEventListener('click', () => R.zoomBy(1.25));
 $('zoomOut').addEventListener('click', () => R.zoomBy(0.8));
 $('zoomFit').addEventListener('click', () => R.fit());
@@ -1119,7 +1123,7 @@ $('rand').addEventListener('click', () => {
 $('seed').addEventListener('change', () => { if (!custom) newGame(); });
 $('fogView').addEventListener('change', () => { sel = reach = null; refresh(); });
 $('size').addEventListener('change', () => { if (!custom) newGame(); });
-for (const id of ['fog', 'counters', 'zoc', 'mode', 'dragons', 'monsters', 'wild']) $(id).addEventListener('change', () => { if (!editing) newGame(); });
+for (const id of ['fog', 'sight', 'counters', 'zoc', 'mode', 'dragons', 'monsters', 'wild']) $(id).addEventListener('change', () => { if (!editing) newGame(); });
 window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 $('sound').checked = store('sound') !== 'off';

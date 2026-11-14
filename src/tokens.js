@@ -279,6 +279,52 @@ function goblin(team, facing = FACING[team]) {
   });
 }
 
+// Catapult: a timber frame on four wheels, the throwing arm drawn back with a stone in its cup,
+// a pennant in the team's colour.
+function catapult(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    const dark = mix(WOOD, [40, 24, 10], 0.45);
+    for (const x of [-0.22, 0.2]) for (const s of [-1, 1]) shape(c, [[x - 0.09, 0.27 * s], [x + 0.09, 0.27 * s], [x + 0.09, 0.36 * s], [x - 0.09, 0.36 * s]], rgb(dark), 0.024);   // wheels
+    for (const s of [-1, 1]) shape(c, [[-0.36, 0.17 * s], [0.34, 0.17 * s], [0.34, 0.27 * s], [-0.36, 0.27 * s]], rgb(WOOD), LW);                       // side beams
+    for (const x of [-0.33, 0.24]) shape(c, [[x, -0.2], [x + 0.09, -0.2], [x + 0.09, 0.2], [x, 0.2]], rgb(WOOD), LW);                                  // cross beams
+    shape(c, [[0.06, -0.3], [0.15, -0.3], [0.15, 0.3], [0.06, 0.3]], rgb(dark), LW);                                                                  // the upright stop
+    c.strokeStyle = 'rgba(40,24,10,0.5)'; c.lineWidth = 0.012;
+    for (const s of [-1, 1]) { c.beginPath(); c.moveTo(-0.34, 0.22 * s); c.lineTo(0.32, 0.22 * s); c.stroke(); }
+    c.strokeStyle = rgb(LEATHER[2]); c.lineWidth = 0.03;                                                                                             // twisted rope
+    for (const y of [-0.1, 0, 0.1]) { c.beginPath(); c.moveTo(0.02, y - 0.04); c.lineTo(0.2, y + 0.04); c.stroke(); }
+    shape(c, [[0.12, -0.045], [-0.4, -0.035], [-0.4, 0.035], [0.12, 0.045]], rgb(mix(WOOD, [230, 200, 150], 0.25)), LW);                              // throwing arm, drawn back
+    shape(c, ellipse(-0.46, 0, 0.12, 0.12), rgb(LEATHER[1]), LW);                                                                                     // cup
+    const g = c.createRadialGradient(-0.49, -0.03, 0.01, -0.46, 0, 0.09);
+    g.addColorStop(0, 'rgb(214,214,206)'); g.addColorStop(1, 'rgb(120,120,116)');
+    shape(c, ellipse(-0.46, 0, 0.085, 0.085), g, 0.022);                                                                                              // stone
+    shape(c, [[0.3, -0.2], [0.56, -0.13], [0.3, -0.06]], rgb(T.base), 0.022);                                                                         // pennant
+    shape(c, [[0.28, -0.22], [0.31, -0.22], [0.31, 0.0], [0.28, 0.0]], rgb(dark), 0.014);
+  });
+}
+
+// Cleric: pale robes with a tabard in the team's colour, a shaven head, a flanged mace, and a
+// golden sun on the chest held out in the other hand.
+function cleric(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    const robe = [232, 224, 204], shade = [176, 164, 140], skin = [222, 180, 140];
+    shape(c, [[0.02, -0.24], [-0.2, -0.24], [-0.38, -0.08], [-0.4, 0.08], [-0.2, 0.24], [0.02, 0.24]], rgb(shade), LW);          // robe trailing behind
+    shape(c, ellipse(0.14, 0.29, 0.16, 0.065, -0.1), rgb(robe), 0.024);                                              // mace arm
+    shape(c, [[0.24, 0.255], [0.56, 0.235], [0.56, 0.285], [0.24, 0.305]], rgb(WOOD), 0.022);                         // haft
+    for (const a of [0, 1, 2, 3, 4, 5]) { const x = 0.62 + Math.cos(a * 1.047) * 0.085, y = 0.26 + Math.sin(a * 1.047) * 0.085; shape(c, ellipse(x, y, 0.035, 0.035), rgb(STEEL[1]), 0.016); }
+    shape(c, ellipse(0.62, 0.26, 0.07, 0.07), rgb(STEEL[0]), 0.022);                                                 // mace head
+    shape(c, ellipse(0.16, -0.27, 0.16, 0.065, 0.2), rgb(robe), 0.024);                                              // the other arm, held out
+    for (let i = 0; i < 8; i++) { const a = i * 0.785; shape(c, [[0.36 + Math.cos(a - 0.2) * 0.07, -0.3 + Math.sin(a - 0.2) * 0.07], [0.36 + Math.cos(a) * 0.15, -0.3 + Math.sin(a) * 0.15], [0.36 + Math.cos(a + 0.2) * 0.07, -0.3 + Math.sin(a + 0.2) * 0.07]], rgb(BRASS), 0.012); }
+    shape(c, ellipse(0.36, -0.3, 0.075, 0.075), 'rgb(255,226,120)', 0.02);                                           // the sun
+    shape(c, ellipse(0, 0, 0.17, 0.31), rgb(robe), LW);                                                              // shoulders
+    shape(c, [[-0.13, -0.1], [0.15, -0.1], [0.15, 0.1], [-0.13, 0.1]], rgb(T.base), 0.022);                           // tabard
+    c.fillStyle = rgb(T.light); c.fillRect(-0.1, -0.02, 0.22, 0.04);
+    const g = c.createRadialGradient(0.02, -0.05, 0.01, 0.05, 0, 0.15);
+    g.addColorStop(0, rgb(mix(skin, [255, 240, 220], 0.5))); g.addColorStop(1, rgb(skin));
+    shape(c, ellipse(0.05, 0, 0.14, 0.135), g, LW);                                                                  // head
+    c.strokeStyle = rgb([120, 84, 52]); c.lineWidth = 0.03; c.beginPath(); c.arc(0.05, 0, 0.1, 1.9, 4.4); c.stroke();   // a fringe of hair
+  });
+}
+
 // ---- Dragon: no ring at all — the creature itself, wings spread across its seven hexes ----
 function dragon(team, facing = FACING[team]) {
   const T = TEAM[team], half = 2.55, U = 120;
@@ -451,7 +497,7 @@ function worm(team, facing = FACING[team]) {
 // A figure is repainted for each facing rather than turned as a picture, because the light and the
 // shadow must stay put while the figure turns. Facings are rounded to steps of 15 degrees.
 export function paintedTokens() {
-  const painters = { soldier, archer, scout, wizard, spider, bat, troll, goblin, dragon, ogre, worm }, cache = new Map(), STEP = Math.PI / 12;
+  const painters = { soldier, archer, scout, wizard, spider, bat, troll, goblin, catapult, cleric, dragon, ogre, worm }, cache = new Map(), STEP = Math.PI / 12;
   return {
     has: (cls) => !!painters[cls],
     facing: (team) => FACING[team] ?? 0,

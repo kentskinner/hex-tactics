@@ -42,7 +42,8 @@ export const TERRAIN = {
 export const CLASSES = {
   soldier: { name: 'Soldier', glyph: 'S', hp: 14, atk: 5, move: 3, rmin: 1, rmax: 1, sight: 4 },     // melee classes exert a zone of control
   archer:  { name: 'Archer',  glyph: 'A', hp: 9,  atk: 4, move: 3, rmin: 2, rmax: 4, sight: 5 },
-  scout:   { name: 'Scout',   glyph: 'C', hp: 10, atk: 4, move: 5, rmin: 1, rmax: 1, sight: 7 },
+  // skirmish: slips past enemy zones of control instead of being stopped by them.
+  scout:   { name: 'Scout',   glyph: 'C', hp: 10, atk: 4, move: 5, rmin: 1, rmax: 1, sight: 7, skirmish: true },
   ogre:    { name: 'Ogre',    glyph: 'O', hp: 24, atk: 6, move: 3, rmin: 1, rmax: 1, sight: 4, size: 'large' },
   // fly: moves over anything (terrain, cliffs, rocks, units, zones of control) at 1 per hex, but must land where it fits.
   //      On a map with `ceiling: true` (a cave) rock is solid to flyers as well.
@@ -55,6 +56,10 @@ export const CLASSES = {
   // regen: heals that much at the start of each of its own turns.
   troll:   { name: 'Cave troll',   glyph: 'T', hp: 22, atk: 6, move: 3, rmin: 1, rmax: 1, sight: 4, regen: 2 },
   goblin:  { name: 'Goblin',  glyph: 'G', hp: 8,  atk: 4, move: 4, rmin: 1, rmax: 1, sight: 4, value: 0.5 },     // weak alone, dangerous in numbers
+  // arc: lobs its shot, so it needs no sight line (walls, hills and houses don't shelter the target) and gets nothing
+  //      from high ground (no extra range or damage). setup: can't shoot in a turn in which it has moved, and never strikes back.
+  catapult: { name: 'Catapult', glyph: 'K', hp: 10, atk: 4, move: 2, rmin: 3, rmax: 7, sight: 4, arc: true, setup: true, pierce: true, value: 1.5 },
+  cleric:  { name: 'Cleric',  glyph: 'H', hp: 12, atk: 4, move: 3, rmin: 1, rmax: 1, sight: 5, spells: ['heal'] },
   wizard:  { name: 'Wizard',  glyph: 'W', hp: 8,  atk: 4, move: 3, rmin: 1, rmax: 3, sight: 5, pierce: true, spells: ['fireball', 'frost', 'blink'] },   // lightning ignores cover
 };
 
@@ -65,12 +70,14 @@ export const CLASSES = {
 //   freeze: the target cannot move on its next turn. (snare: the same, shown as a web: unit.frozen = 2.)
 //   cone:   aimed at any hex in range; burns everything in a 60-degree wedge toward it, from
 //           rmin to rmax hexes out — friend or foe — except what is hidden behind rock or a rise.
+//   heal:   restores that many hit points to a wounded friend in range (or the caster itself).
 //   blink:  teleports the caster to any free hex in range, over cliffs, water and walls.
 export const SPELLS = {
   fireball: { name: 'Fireball',   rmin: 2, rmax: 4, cooldown: 3, dmg: 4, splash: 2, area: true },
   frost:    { name: 'Frost bolt', rmin: 1, rmax: 4, cooldown: 2, dmg: 2, freeze: true },
   breath:   { name: 'Fire breath', rmin: 2, rmax: 4, cooldown: 2, dmg: 5, cone: true },
   web:      { name: 'Web',        rmin: 2, rmax: 3, cooldown: 3, dmg: 1, splash: 1, area: true, freeze: true, snare: true },
+  heal:     { name: 'Heal',       rmin: 0, rmax: 2, cooldown: 3, heal: 5 },
   blink:    { name: 'Blink',      rmin: 1, rmax: 4, cooldown: 3, blink: true },
 };
 
@@ -164,7 +171,7 @@ export function fits(state, unit, at = unit) {
 //       turn is ending then scores 1 per point it owns. First to `target` wins (default 2 per
 //       point); wiping the enemy out still wins too. Points come from map.objectives, or are
 //       placed automatically along the line where the two armies meet.
-export function createGame(map, { maxRounds = 0, fog = false, counters = true, zoc = true, mode, target = 0, dragons = 'none', monsters, wild } = {}) {
+export function createGame(map, { maxRounds = 0, fog = false, counters = true, zoc = true, mode, target = 0, dragons = 'none', monsters, wild, sight = 'los' } = {}) {
   if (!mode) mode = map.siege ? 'siege' : map.raid ? 'raid' : 'eliminate';
   const raid = mode === 'raid' ? { defender: 1, ...(map.raid || {}) } : null;
   if (!maxRounds && raid?.rounds) maxRounds = raid.rounds;
@@ -259,7 +266,7 @@ export function createGame(map, { maxRounds = 0, fog = false, counters = true, z
   }
   // roster: both starting line-ups (public knowledge, even under fog).
   const roster = units.map(({ id, team, cls, q, r, o, hero, max }) => ({ id, team, cls, q, r, o, ...(hero ? { hero, max } : {}) }));
-  return { map, units, roster, turn: 0, round: 1, winner: null, maxRounds, fog, counters, zoc,
+  return { map, units, roster, turn: 0, round: 1, winner: null, maxRounds, fog, sight, counters, zoc,
     mode, objectives, owners: objectives.map(() => (siege ? siege.defender : null)), score: [0, 0],
     defender: siege ? siege.defender : raid ? raid.defender : null, target: target || (siege ? siege.target : 2 * objectives.length) };
 }
@@ -363,7 +370,7 @@ export function reachable(state, unit) {
     for (let i = 1; i < open.length; i++) if (open[i].cost < open[bi].cost) bi = i;
     const cur = open.splice(bi, 1)[0];
     // Stepped into a control zone: no further.
-    if (!fly && cur !== start && footprint(unit, cur).some((c) => zone.has(key(c.q, c.r)))) continue;
+    if (!fly && !CLASSES[unit.cls].skirmish && cur !== start && footprint(unit, cur).some((c) => zone.has(key(c.q, c.r)))) continue;
     for (const next of stepsFrom(state.map, unit, cur)) {
       const cost = cur.cost + next.step;
       if (cost > budget) continue;
@@ -496,7 +503,8 @@ export function los(map, a, b) {
 }
 
 // The first cell that blocks the sight line between a and b, or null if it is clear.
-export function losBlocker(map, a, b) {
+// veil: forest counts as one level taller (for seeing, not for shooting).
+export function losBlocker(map, a, b, veil = false) {
   if (a.q > b.q || (a.q === b.q && a.r > b.r)) [a, b] = [b, a];
   const n = dist(a, b);
   const ea = cellAt(map, a).e + 1, eb = cellAt(map, b).e + 1;
@@ -504,15 +512,25 @@ export function losBlocker(map, a, b) {
     const t = i / n;
     const h = hexRound(a.q + (b.q - a.q) * t + 1e-6, a.r + (b.r - a.r) * t + 2e-6);
     const c = cellAt(map, h);
-    if (c && c.e + (TERRAIN[c.t].tall ? 2 : 0) >= ea + (eb - ea) * t - 1e-9) return c;
+    if (c && c.e + (TERRAIN[c.t].tall ? 2 : veil && c.t === 'forest' ? 1 : 0) >= ea + (eb - ea) * t - 1e-9) return c;
   }
   return null;
+}
+
+// Can an eye on `a` see hex `b` across open country? Like los, but woods in between screen the view.
+function sees(map, a, b) {
+  if (a.q > b.q || (a.q === b.q && a.r > b.r)) [a, b] = [b, a];
+  const k = 'v' + a.q + ',' + a.r + '|' + b.q + ',' + b.r;
+  let v = map.losCache.get(k);
+  if (v === undefined) { v = !losBlocker(map, a, b, true); map.losCache.set(k, v); }
+  return v;
 }
 
 // Could a unit of class `cls` standing on `from` attack something standing on `to`?
 export function canAttack(map, cls, from, to) {
   const c = CLASSES[cls], d = dist(from, to);
   const ea = cellAt(map, from).e, eb = cellAt(map, to).e;
+  if (c.arc) return d >= c.rmin && d <= c.rmax;
   if (c.rmax === 1) return d === 1 && Math.abs(ea - eb) <= 1;
   return d >= c.rmin && d <= c.rmax + (ea > eb ? 1 : 0) && los(map, from, to);   // high ground: +1 range
 }
@@ -543,7 +561,7 @@ export function damage(map, attacker, from, target, at = target) {
     cover = Math.min(cover, TERRAIN[cell.t].cover);
   }
   if (cls.pierce) cover = Math.min(0, cover);
-  const h = Math.max(-2, Math.min(2, high - low));
+  const h = cls.arc ? 0 : Math.max(-2, Math.min(2, high - low));      // a lobbed shot lands the same from any height
   return Math.max(1, cls.atk + (attacker.hero ? HERO_ATK : 0) + h - cover - (wet ? 1 : 0));
 }
 
@@ -551,19 +569,24 @@ export function damage(map, attacker, from, target, at = target) {
 // its normal attack, if the attacker is within its range and sight line. 0 if it can't reach, or
 // the rule is off. Spells are never countered.
 export function counterDamage(state, defender, attacker, from = attacker) {
-  if (!state.counters || !canStrike(state.map, defender, defender, attacker, from)) return 0;
+  if (!state.counters || CLASSES[defender.cls].setup || !canStrike(state.map, defender, defender, attacker, from)) return 0;
   return damage(state.map, defender, defender, attacker, from);
 }
 
 export function targetsFrom(state, unit, from) {
+  if (CLASSES[unit.cls].setup && (unit.moved || from.q !== unit.q || from.r !== unit.r)) return [];     // must stand still to shoot
   return state.units.filter((t) => t.team !== unit.team && canStrike(state.map, unit, from, t)
     && (!state.fog || spotted(state, unit, from, t)));
 }
 
 // ---- Fog of war (only when state.fog is set) ----
 //
-// A team sees every hex within a unit's sight range that the unit has a clear sight line to
-// (+1 range when looking down from higher ground). Vision is shared across the team. Units
+// state.sight picks how far units see:
+//   'los' (default) — in the open a unit sees every hex it has a clear line to, however far: hills,
+//         rock and houses block the view, and so do woods in between (unless it looks over them from
+//         higher ground). Under a cave ceiling it is dark, and sight ranges apply as below.
+//   'range' — a team sees every hex within a unit's sight range that the unit has a clear sight line to
+//         (+1 range when looking down from higher ground). Vision is shared across the team. Units
 // standing in forest stay hidden until an enemy is adjacent to them.
 //
 // The true state always holds every unit. What a player may know is observe(state, team):
@@ -571,10 +594,16 @@ export function targetsFrom(state, unit, from) {
 
 export function visibleCells(state, team) {
   const { map } = state, vis = new Set();
+  const far = state.sight !== 'range' && !map.ceiling;
+  const all = far ? Object.values(map.cells) : null;
   for (const u of state.units) {
     if (u.team !== team) continue;
     const sight = CLASSES[u.cls].sight;
     for (const eye of footprint(u)) {
+      if (far) {
+        for (const c of all) { const k = key(c.q, c.r); if (!vis.has(k) && (dist(eye, c) <= 1 || sees(map, eye, c))) vis.add(k); }
+        continue;
+      }
       const eu = cellAt(map, eye).e;
       for (let dq = -sight - 1; dq <= sight + 1; dq++) {
         for (let dr = Math.max(-sight - 1, -dq - sight - 1); dr <= Math.min(sight + 1, -dq + sight + 1); dr++) {
@@ -628,7 +657,7 @@ export function threatZone(state, unit) {
     for (const c of cellsWithin(state.map, n, range)) {
       const k = key(c.q, c.r);
       if (out.get(k) === 'now' || (!here && out.has(k))) continue;
-      const hit = footprint(unit, n).some((a) => canAttack(state.map, unit.cls, a, c))
+      const hit = (!(k0.setup && !here) && footprint(unit, n).some((a) => canAttack(state.map, unit.cls, a, c)))
         || (CLASSES[unit.cls].spells || []).some((sp) => SPELLS[sp].dmg && !(unit['cd_' + sp] > 0) && spellReach(state.map, sp, n, c));
       if (hit) out.set(k, here ? 'now' : 'move');
     }
@@ -658,6 +687,14 @@ export function castTargets(state, unit, sp, from = unit) {
   }
   if (SPELLS[sp].area || SPELLS[sp].cone) return cellsWithin(state.map, from, SPELLS[sp].rmax).filter((c) => spellReach(state.map, sp, from, c));
   const out = [];                                // one entry per enemy: the hex of it to aim at, plus its id
+  if (SPELLS[sp].heal) {                         // ...or per wounded friend, for a healing spell
+    for (const t of state.units) {
+      if (t.team !== unit.team || t.hp >= maxHp(t)) continue;
+      const c = t.id === unit.id ? { q: from.q, r: from.r } : footprint(t).find((h) => spellReach(state.map, sp, from, h));
+      if (c) out.push({ q: c.q, r: c.r, id: t.id });
+    }
+    return out;
+  }
   for (const t of state.units) {
     if (t.team === unit.team) continue;
     const c = footprint(t).find((h) => spellReach(state.map, sp, from, h));
@@ -757,7 +794,7 @@ export function legalActions(state) {
     for (const sp of CLASSES[u.cls].spells || []) {
       if (!spellReady(u, sp)) continue;
       for (const h of castTargets(state, u, sp)) {      // skip casts that would hit no enemy
-        if (SPELLS[sp].blink || spellHits(state, sp, h, u).some((x) => x.unit.team !== u.team)) out.push({ type: 'cast', unit: u.id, spell: sp, q: h.q, r: h.r });
+        if (SPELLS[sp].blink || SPELLS[sp].heal || spellHits(state, sp, h, u).some((x) => x.unit.team !== u.team)) out.push({ type: 'cast', unit: u.id, spell: sp, q: h.q, r: h.r });
       }
     }
     out.push({ type: 'wait', unit: u.id });
@@ -781,7 +818,7 @@ export function isLegal(state, a) {
     // Judged on what the caster's team knows (a blink may be aimed at a hex with a hidden enemy on it).
     if (!SPELLS[a.spell] || !spellReady(u, a.spell)) return false;
     const view = observe(state, u.team), aims = castTargets(view, u, a.spell);
-    if (SPELLS[a.spell].dmg && !SPELLS[a.spell].area && !SPELLS[a.spell].cone) {       // aimed at a unit: any of its hexes will do
+    if ((SPELLS[a.spell].dmg || SPELLS[a.spell].heal) && !SPELLS[a.spell].area && !SPELLS[a.spell].cone) {       // aimed at a unit: any of its hexes will do
       const t = unitAt(view, a);
       return !!t && aims.some((h) => h.id === t.id);
     }
@@ -857,7 +894,7 @@ export function applyAction(state, a) {
       const others = footprint(u, path[i]).map((c) => unitAt(state, c)).filter((x) => x && x.id !== u.id);
       if (others.some((x) => x.team !== u.team)) { ambushed = true; break; }
       if (!others.length) end = i;               // allies can be passed but not stopped on
-      if (i < path.length - 1 && footprint(u, path[i]).some((c) => zone.has(key(c.q, c.r)))) { ambushed = true; break; }
+      if (!CLASSES[u.cls].skirmish && i < path.length - 1 && footprint(u, path[i]).some((c) => zone.has(key(c.q, c.r)))) { ambushed = true; break; }
     }
     put(path[end]);
     return { path: path.slice(0, end + 1), ambushed };
@@ -870,6 +907,13 @@ export function applyAction(state, a) {
       const from = { q: u.q, r: u.r }, fizzled = !!unitAt(state, a);
       if (!fizzled) { u.q = a.q; u.r = a.r; }
       return { hits: [], from, fizzled };
+    }
+    if (s.heal) {                                // returns {hits: [], healed: {unit (as it was), amount}}
+      const t = unitAt(state, a);
+      if (!t || t.team !== u.team) return { hits: [], healed: null };
+      const before = { ...t }, amount = Math.min(s.heal, maxHp(t) - t.hp);
+      t.hp += amount;
+      return { hits: [], healed: { unit: before, amount } };
     }
     const hits = spellHits(state, a.spell, a, u).map(({ unit: t, dmg }) => {
       const before = { ...t };
