@@ -30,6 +30,7 @@ const view = { reach: null, selected: null, targets: new Set(), hoverTargets: ne
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const speed = () => +$('speed').value;
 const unit = (id) => E.unitById(state, id);
+let dragonsBefore = null;                         // the Dragons setting to restore after a scenario map
 const label = (u) => `${TEAM[u.team]} ${E.CLASSES[u.cls].name}`;
 const spot = (u) => ({ q: u.q, r: u.r, o: u.o, cls: u.cls });      // where a unit is, for effects and numbers
 
@@ -685,6 +686,11 @@ async function openSavedMap(name) {
   R.backdrop = bd;
   // A siege map is played as a siege; leaving one goes back to plain elimination.
   if (data.siege) $('mode').value = 'siege'; else if (data.raid) $('mode').value = 'raid'; else if ($('mode').value === 'siege' || $('mode').value === 'raid') $('mode').value = 'eliminate';
+  // Scenarios (siege, raid) are balanced without dragons: switch them off there, and put the
+  // setting back on leaving. It can still be turned on by hand.
+  const scenario = !!(data.siege || data.raid);
+  if (scenario && dragonsBefore === null) { dragonsBefore = $('dragons').value; $('dragons').value = 'none'; }
+  else if (!scenario && dragonsBefore !== null) { $('dragons').value = dragonsBefore; dragonsBefore = null; }
   setOverlay(data.backdrop?.overlay ?? 0.4);
   if (bd) setView(true);
   store('map', name);
