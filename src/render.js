@@ -235,7 +235,7 @@ export class Renderer {
       ctx.setLineDash([]);
     }
     if (ui.anim) {
-      const u = state.units.find((x) => x.id === ui.anim.id);
+      const u = state.units.find((x) => x.id === ui.anim.id) || ui.anim.unit;      // (a unit shot down mid-move is drawn from its snapshot)
       if (u && ui.anim.mound) {                   // a burrower on the move: just the ground heaving above it
         const { x, y } = ui.anim, S = this.S, w = Math.sin(performance.now() / 45);
         ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(x + 2, y + 3, S * 0.62, S * 0.5, 0, 0, 6.3); ctx.fill();
@@ -882,6 +882,12 @@ export class Renderer {
       ctx.beginPath();
       for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? R * 0.45 : R; ctx.lineTo(sx + Math.cos(a) * rr, sy + Math.sin(a) * rr); }
       ctx.closePath(); ctx.fillStyle = '#ffd34a'; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = '#3a2808'; ctx.stroke();
+    }
+    if (u.watch) {                                 // on overwatch: a crosshair at the other end of the bar
+      const cx = bx + bw + bh * 1.6, cy = by + bh / 2, R = bh * 1.15;
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.3); ctx.fillStyle = 'rgba(20,16,10,0.85)'; ctx.fill();
+      ctx.lineWidth = Math.max(1.2, bh * 0.28); ctx.strokeStyle = '#ffb347'; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - R * 1.5, cy); ctx.lineTo(cx + R * 1.5, cy); ctx.moveTo(cx, cy - R * 1.5); ctx.lineTo(cx, cy + R * 1.5); ctx.stroke();
     }
   }
 }

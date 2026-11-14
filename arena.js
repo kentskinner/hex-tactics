@@ -1,5 +1,5 @@
 // Headless AI-vs-AI tournament.
-//   node arena.js <aiA> <aiB> [--games 20] [--seed 1] [--map name-or-path] [--fog] [--sight-range] [--no-counters] [--no-zoc] [--hold | --siege | --raid | --eliminate] [--dragons] [--monsters | --no-monsters] [--wild | --no-wild] [--size 6]
+//   node arena.js <aiA> <aiB> [--games 20] [--seed 1] [--map name-or-path] [--fog] [--sight-range] [--no-counters] [--no-zoc] [--no-flank] [--hold | --siege | --raid | --eliminate] [--dragons] [--monsters | --no-monsters] [--wild | --no-wild] [--size 6]
 // Each map is played twice with sides swapped, so first-move and terrain advantage cancel out.
 // --map uses a saved map (maps/<name>.json) for every game instead of generated ones.
 // --fog plays with fog of war: each AI is only shown what its own team can see. Units see as far as
@@ -20,9 +20,9 @@ import { AIS } from './src/ai/index.js';
 
 const args = process.argv.slice(2);
 const opt = (name, def) => { const i = args.indexOf('--' + name); return i >= 0 ? +args[i + 1] : def; };
-const SWITCHES = ['--fog', '--sight-range', '--no-counters', '--no-zoc', '--hold', '--siege', '--raid', '--eliminate', '--dragons', '--monsters', '--no-monsters', '--wild', '--no-wild'];  // flags that take no value
+const SWITCHES = ['--fog', '--sight-range', '--no-counters', '--no-zoc', '--no-flank', '--hold', '--siege', '--raid', '--eliminate', '--dragons', '--monsters', '--no-monsters', '--wild', '--no-wild'];  // flags that take no value
 const fog = args.includes('--fog');
-const rules = { fog, sight: args.includes('--sight-range') ? 'range' : 'los', counters: !args.includes('--no-counters'), zoc: !args.includes('--no-zoc'),
+const rules = { fog, sight: args.includes('--sight-range') ? 'range' : 'los', counters: !args.includes('--no-counters'), zoc: !args.includes('--no-zoc'), flank: !args.includes('--no-flank'),
   mode: args.includes('--hold') ? 'hold' : args.includes('--siege') ? 'siege' : args.includes('--raid') ? 'raid' : args.includes('--eliminate') ? 'eliminate' : undefined, dragons: args.includes('--dragons') ? 'both' : 'none',
   monsters: args.includes('--no-monsters') ? [] : args.includes('--monsters') ? PACKS.cave : undefined,
   wild: args.includes('--no-wild') ? [] : args.includes('--wild') ? 'auto' : undefined };

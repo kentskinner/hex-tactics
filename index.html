@@ -74,6 +74,7 @@
     <label title="Monsters that belong to neither side. Each guards the ground around its lair and attacks anyone who comes close; they move after Red.">Neutrals <select id="wild"><option value="map">Map's own</option><option value="auto">Add some</option><option value="none">None</option></select></label>
     <label><span><input id="counters" type="checkbox" checked> Counter-attacks</span></label>
     <label><span><input id="zoc" type="checkbox" checked> Zones of control</span></label>
+    <label title="A melee attack does +2 damage when one of the attacker's friends stands directly behind the target."><span><input id="flank" type="checkbox" checked> Flanking</span></label>
     <label><span><input id="fog" type="checkbox"> Fog of war</span></label>
     <label title="How far units see under fog of war. Line of sight: as far as the view is clear — hills, rock, houses and woods block it (caves stay dark and use sight ranges). Sight ranges: each unit sees only a few hexes.">Sight <select id="sight"><option value="los">Line of sight</option><option value="range">Sight ranges</option></select></label>
     <label title="Off: each AI is only told what its own units can see. On: AIs are given the full board."><span><input id="cheat" type="checkbox"> AIs see through fog</span></label>
@@ -127,7 +128,7 @@
   <h2 style="margin:0">Log</h2>
   <div id="log"></div>
   <div class="help">Click a unit, then a blue hex to move or a red enemy to attack. Hover an enemy to see where it can strike next turn.
-    <kbd>E</kbd> end turn · <kbd>U</kbd> undo move · <kbd>1</kbd>–<kbd>3</kbd> spells · <kbd>Esc</kbd> deselect</div>
+    <kbd>E</kbd> end turn · <kbd>U</kbd> undo move · <kbd>O</kbd> overwatch · <kbd>1</kbd>–<kbd>3</kbd> spells · <kbd>Esc</kbd> deselect</div>
 </aside>
 <script type="module" src="src/main.js"></script>
 </body>

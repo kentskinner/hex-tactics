@@ -109,7 +109,15 @@ The map file format is documented at the top of the "Map files" section in `src/
 - **Zones of control** — soldiers and scouts control the hexes next to them (within one level of height).
   An enemy that steps into one must stop there; a unit that starts its move in one may leave freely.
   Reachable hexes that would end the move this way are edged in red.
-- Both can be switched off in the sidebar, or with `--no-counters` / `--no-zoc` in the arena.
+- **Flanking** — a melee attack (and a melee counter-attack) does +2 damage when one of the attacker's friends stands
+  directly behind the target: on the hex you reach by carrying on in a straight line from the attacker through the
+  target's body. The attack preview and the log say when a blow is flanked.
+- All three can be switched off in the sidebar, or with `--no-counters` / `--no-zoc` / `--no-flank` in the arena.
+- **Overwatch** — instead of attacking, a ranged unit (archer, wizard, catapult that hasn't moved) can hold its shot:
+  the Overwatch button, or `O`. The first enemy to move through a hex it can reach and see before its own next turn is
+  shot there for normal damage, with no reply; the mover carries on if it survives. A crosshair beside the health bar
+  marks a unit on overwatch. Burrowers are only targets where they surface. The Greedy AI goes on overwatch when it
+  has no shot but an enemy is within a few hexes of its range.
 - **Units** — Soldier (14 hp, 5 atk, move 3), Archer (9 hp, 4 atk, move 3, range 2–4), Scout (10 hp, 4 atk, move 5),
   Wizard (8 hp, 4 atk, move 3, range 1–3, lightning ignores cover), Ogre (24 hp, 6 atk, move 3, three hexes).
   Each side fields one of each. Scouts are skirmishers: enemy zones of control don't stop them.

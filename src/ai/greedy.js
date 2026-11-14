@@ -11,12 +11,18 @@ function scoreOption(state, u, o, enemies, field, asleep = false, quiet = false)
   const far = quiet || (field.get(key(o.q, o.r)) ?? 99) > 8;
   let s = far ? 0 : TERRAIN[cell.t].cover * 3 + cell.e * 2;
   if (o.target) {
-    const d = Math.min(o.target.hp, damage(state.map, u, o, o.target));
+    const d = Math.min(o.target.hp, damage(state.map, u, o, o.target, o.target, state));
     s += d * 10 + (d >= o.target.hp ? 40 : 0) + 10 * d / o.target.hp;
     if (d < o.target.hp) {                                            // it survives, so it may hit back
       const back = Math.min(u.hp, counterDamage(state, o.target, u, o));
       s -= back * 8 + (back >= u.hp ? 45 : 0);
     }
+  }
+  if (o.watch) {                                                      // holding the shot: worth it when someone may come into range
+    const reach = CLASSES[u.cls].rmax;
+    let near = Infinity;
+    for (const e of enemies) if (e.team !== 2) near = Math.min(near, dist(e, o));
+    s += near <= reach ? -6 : near <= reach + 5 ? 7 : -3;             // (in range already: better to shoot now)
   }
   if (o.cast) {                                                       // spells: same scale, allies count against
     const spell = SPELLS[o.cast.spell];
@@ -79,6 +85,7 @@ export function bestAction(state, noise = 0, rng = Math.random, goals = []) {
     return o.o === undefined ? { type: 'move', unit: u.id, q: o.q, r: o.r } : { type: 'move', unit: u.id, q: o.q, r: o.r, o: o.o };
   }
   if (o.target) return { type: 'attack', unit: u.id, target: o.target.id };
+  if (o.watch) return { type: 'overwatch', unit: u.id };
   if (o.cast) return { type: 'cast', unit: u.id, ...o.cast };
   return { type: 'wait', unit: u.id };
 }

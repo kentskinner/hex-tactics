@@ -154,7 +154,8 @@ export function fits(state, unit, at = unit) {
 }
 
 // Optional rules (all plain flags on the state): fog, counters (defenders strike back),
-// zoc (melee units stop enemies that step next to them).
+// zoc (melee units stop enemies that step next to them), flank (a melee blow hits harder when a
+// friend stands on the far side of the target).
 //
 // mode: 'eliminate' (default) — destroy the other team.
 //       'siege' — asymmetric. One team defends (map.siege.defender, default 1 = Red) and starts
@@ -171,7 +172,7 @@ export function fits(state, unit, at = unit) {
 //       turn is ending then scores 1 per point it owns. First to `target` wins (default 2 per
 //       point); wiping the enemy out still wins too. Points come from map.objectives, or are
 //       placed automatically along the line where the two armies meet.
-export function createGame(map, { maxRounds = 0, fog = false, counters = true, zoc = true, mode, target = 0, dragons = 'none', monsters, wild, sight = 'los' } = {}) {
+export function createGame(map, { maxRounds = 0, fog = false, counters = true, zoc = true, mode, target = 0, dragons = 'none', monsters, wild, sight = 'los', flank = true } = {}) {
   if (!mode) mode = map.siege ? 'siege' : map.raid ? 'raid' : 'eliminate';
   const raid = mode === 'raid' ? { defender: 1, ...(map.raid || {}) } : null;
   if (!maxRounds && raid?.rounds) maxRounds = raid.rounds;
@@ -266,7 +267,7 @@ export function createGame(map, { maxRounds = 0, fog = false, counters = true, z
   }
   // roster: both starting line-ups (public knowledge, even under fog).
   const roster = units.map(({ id, team, cls, q, r, o, hero, max }) => ({ id, team, cls, q, r, o, ...(hero ? { hero, max } : {}) }));
-  return { map, units, roster, turn: 0, round: 1, winner: null, maxRounds, fog, sight, counters, zoc,
+  return { map, units, roster, turn: 0, round: 1, winner: null, maxRounds, fog, sight, counters, zoc, flank,
     mode, objectives, owners: objectives.map(() => (siege ? siege.defender : null)), score: [0, 0],
     defender: siege ? siege.defender : raid ? raid.defender : null, target: target || (siege ? siege.target : 2 * objectives.length) };
 }
@@ -543,10 +544,31 @@ export function canStrike(map, attacker, from, target, at = target) {
   return footprint(attacker, from).some((a) => theirs.some((b) => canAttack(map, attacker.cls, a, b)));
 }
 
+// Flanking: is one of the attacker's friends standing directly behind the target, as seen from the
+// attacker? For each pair of touching hexes (attacker's, target's), carry on in the same direction
+// until clear of the target's body: a friend on that hex has it flanked. Melee only.
+export const FLANK = 2;
+export function flanked(state, attacker, from, target, at = target) {
+  if (!state || state.flank === false || CLASSES[attacker.cls].rmax !== 1) return false;
+  const body = footprint(target, at), inside = new Set(body.map((c) => key(c.q, c.r)));
+  for (const a of footprint(attacker, from)) {
+    for (const b of body) {
+      if (dist(a, b) !== 1) continue;
+      const dq = b.q - a.q, dr = b.r - a.r;
+      let h = { q: b.q + dq, r: b.r + dr };
+      while (inside.has(key(h.q, h.r))) h = { q: h.q + dq, r: h.r + dr };
+      const m = unitAt(state, h);
+      if (m && m.team === attacker.team && m.id !== attacker.id && m.id !== target.id) return true;
+    }
+  }
+  return false;
+}
+
 // Damage `attacker` would deal to `target` if it stood on `from` (and the target on `at`).
 // atk, +/-1 per level of height difference (max 2), minus target's cover, -1 if attacking from water.
 // Big creatures attack from their highest hex and defend on their lowest, with their worst cover.
-export function damage(map, attacker, from, target, at = target) {
+// Pass the state as well to count flanking (+FLANK for a melee blow at a flanked target).
+export function damage(map, attacker, from, target, at = target, state = null) {
   const cls = CLASSES[attacker.cls];
   let high = -Infinity, wet = true;
   for (const c of footprint(attacker, from)) {
@@ -562,7 +584,8 @@ export function damage(map, attacker, from, target, at = target) {
   }
   if (cls.pierce) cover = Math.min(0, cover);
   const h = cls.arc ? 0 : Math.max(-2, Math.min(2, high - low));      // a lobbed shot lands the same from any height
-  return Math.max(1, cls.atk + (attacker.hero ? HERO_ATK : 0) + h - cover - (wet ? 1 : 0));
+  const flank = state && flanked(state, attacker, from, target, at) ? FLANK : 0;
+  return Math.max(1, cls.atk + (attacker.hero ? HERO_ATK : 0) + h - cover - (wet ? 1 : 0) + flank);
 }
 
 // Damage `defender` would deal back to `attacker` (standing on `from`) after surviving its attack:
@@ -570,7 +593,39 @@ export function damage(map, attacker, from, target, at = target) {
 // the rule is off. Spells are never countered.
 export function counterDamage(state, defender, attacker, from = attacker) {
   if (!state.counters || CLASSES[defender.cls].setup || !canStrike(state.map, defender, defender, attacker, from)) return 0;
-  return damage(state.map, defender, defender, attacker, from);
+  return damage(state.map, defender, defender, attacker, from, state);
+}
+
+// Overwatch: instead of attacking, a ranged unit may hold its shot (action {type: 'overwatch', unit}).
+// The first enemy to move through a hex it can see and reach before its own next turn is shot there,
+// for normal damage and with no reply; the mover carries on if it survives. A burrower is only a
+// target where it comes up. Units that must set up can't go on overwatch after moving.
+export const canWatch = (u) => !u.acted && CLASSES[u.cls].rmax > 1 && !(CLASSES[u.cls].setup && u.moved);
+
+// Fire every overwatch shot `u` draws walking `path` as far as index `end`. Mutates hp and the
+// watchers; returns {end, shots: [{by, i, dmg, killed, unit (as it was, on that hex)}]}, with `end`
+// cut short if it is killed.
+function runGauntlet(state, u, path, end) {
+  const shots = [], map = state.map, under = !!CLASSES[u.cls].burrow;
+  for (let i = 1; i <= end; i++) {
+    if (under && i < end) continue;
+    const body = footprint(u, path[i]);
+    for (const w of state.units) {
+      if (!w.watch || w.team === u.team || w.hp <= 0) continue;
+      if (!canStrike(map, w, w, u, path[i])) continue;
+      if (CLASSES[w.cls].arc && !footprint(w).some((a) => body.some((b) => los(map, a, b)))) continue;     // can't lob at what it can't see
+      if (state.fog && body.every((c) => cellAt(map, c).t === 'forest')
+        && !state.units.some((m) => m.team === w.team && unitDist(m, u, m, path[i]) <= 1)) continue;      // hidden in the woods
+      const before = { ...u, q: path[i].q, r: path[i].r };
+      if (path[i].o !== undefined) before.o = path[i].o;
+      const dmg = damage(map, w, w, u, path[i]);
+      w.watch = false;
+      u.hp -= dmg;
+      shots.push({ by: w.id, i, dmg, killed: u.hp <= 0, unit: before });
+      if (u.hp <= 0) return { end: i, shots };
+    }
+  }
+  return { end, shots };
 }
 
 export function targetsFrom(state, unit, from) {
@@ -758,6 +813,7 @@ export function unitOptions(state, unit) {
     if (!n.stop) continue;
     const pos = n.o === undefined ? { q: n.q, r: n.r, cost: n.cost } : { q: n.q, r: n.r, o: n.o, cost: n.cost };
     out.push({ ...pos, target: null });
+    if (CLASSES[unit.cls].rmax > 1 && !(CLASSES[unit.cls].setup && (unit.moved || n.cost > 0))) out.push({ ...pos, target: null, watch: true });   // hold the shot
     for (const t of targetsFrom(state, unit, n)) out.push({ ...pos, target: t });
     for (const sp of CLASSES[unit.cls].spells || []) {
       if (!spellReady(unit, sp) || SPELLS[sp].blink) continue;     // blink is left to legalActions: too many targets
@@ -797,6 +853,7 @@ export function legalActions(state) {
         if (SPELLS[sp].blink || SPELLS[sp].heal || spellHits(state, sp, h, u).some((x) => x.unit.team !== u.team)) out.push({ type: 'cast', unit: u.id, spell: sp, q: h.q, r: h.r });
       }
     }
+    if (canWatch(u)) out.push({ type: 'overwatch', unit: u.id });
     out.push({ type: 'wait', unit: u.id });
   }
   out.push({ type: 'endTurn' });
@@ -809,6 +866,7 @@ export function isLegal(state, a) {
   const u = unitById(state, a.unit);
   if (!u || u.team !== state.turn || u.acted) return false;
   if (a.type === 'wait') return true;
+  if (a.type === 'overwatch') return canWatch(u);
   if (a.type === 'move') {
     if (u.moved) return false;
     const n = reachable(observe(state, u.team), u).get(posKey(isBig(u) ? { q: a.q, r: a.r, o: a.o || 0 } : { q: a.q, r: a.r }));   // judged on what the mover knows
@@ -832,7 +890,8 @@ export function isLegal(state, a) {
 }
 
 // Mutates `state`. Does NOT validate (so simulations stay fast) — call isLegal first for
-// untrusted actions. Returns {dmg, killed, counter: {dmg, killed} | null} for attacks. Under fog, a move on the true state
+// untrusted actions. Returns {dmg, killed, counter: {dmg, killed} | null, flank} for attacks. A move through
+// overwatch fire returns {path, ambushed: false, shots: [{by, i, dmg, killed, unit}]} (see runGauntlet). Under fog, a move on the true state
 // follows the path the mover planned and stops short if a hidden enemy is in the way; it
 // then returns {path, ambushed}.
 export function applyAction(state, a) {
@@ -860,6 +919,7 @@ export function applyAction(state, a) {
       u.moved = false; u.acted = false;
       if (u.team === ending && u.frozen) u.frozen = 0;                         // its frozen turn is over
       if (u.team !== state.turn) continue;
+      if (u.watch) u.watch = false;              // an unused overwatch lapses when its own turn comes round
       for (const sp of CLASSES[u.cls].spells || []) if (u['cd_' + sp] > 0) u['cd_' + sp]--;
       if (CLASSES[u.cls].regen) u.hp = Math.min(maxHp(u), u.hp + CLASSES[u.cls].regen);
     }
@@ -879,7 +939,20 @@ export function applyAction(state, a) {
     const big = isBig(u);
     const dest = big ? { q: a.q, r: a.r, o: a.o || 0 } : { q: a.q, r: a.r };
     const put = (p) => { u.q = p.q; u.r = p.r; if (big) u.o = p.o; };
-    if (!state.fog || state.observer !== undefined) { put(dest); u.moved = true; return null; }
+    const watched = state.units.some((x) => x.watch && x.team !== u.team);
+    // Walk as far as `end` along `path` through any overwatch fire; a unit shot dead falls where it was hit.
+    const walk = (path, end, ambushed) => {
+      const run = watched ? runGauntlet(state, u, path, end) : { end, shots: [] };
+      put(path[run.end]);
+      if (u.hp <= 0) { state.units = state.units.filter((x) => x.hp > 0); settle(state); }
+      return { path: path.slice(0, run.end + 1), ambushed: ambushed && run.end === end, shots: run.shots };
+    };
+    if (!state.fog || state.observer !== undefined) {
+      if (!watched) { put(dest); u.moved = true; return null; }
+      const path = pathTo(reachable(state, u), dest);          // only worked out when somebody is watching
+      u.moved = true;
+      return walk(path, path.length - 1, false);
+    }
     const path = pathTo(reachable(observe(state, u.team), u), dest);
     u.moved = true;
     const zone = controlZone(state, u.team);      // includes zones of enemies the mover can't see
@@ -887,8 +960,7 @@ export function applyAction(state, a) {
     if (glides(u.cls)) {                          // lands on the last spot along its flight that is really free
       for (let i = 1; i < path.length; i++) if (fits(state, u, path[i])) end = i;
       ambushed = end < path.length - 1;
-      put(path[end]);
-      return { path: path.slice(0, end + 1), ambushed };
+      return walk(path, end, ambushed);
     }
     for (let i = 1; i < path.length; i++) {
       const others = footprint(u, path[i]).map((c) => unitAt(state, c)).filter((x) => x && x.id !== u.id);
@@ -896,10 +968,10 @@ export function applyAction(state, a) {
       if (!others.length) end = i;               // allies can be passed but not stopped on
       if (!CLASSES[u.cls].skirmish && i < path.length - 1 && footprint(u, path[i]).some((c) => zone.has(key(c.q, c.r)))) { ambushed = true; break; }
     }
-    put(path[end]);
-    return { path: path.slice(0, end + 1), ambushed };
+    return walk(path, end, ambushed);
   }
   u.moved = true; u.acted = true;
+  if (a.type === 'overwatch') { u.watch = true; return null; }
   if (a.type === 'cast') {                       // returns {hits: [{unit (as it was), dmg, killed}]}
     const s = SPELLS[a.spell];
     u['cd_' + a.spell] = s.cooldown;
@@ -927,7 +999,8 @@ export function applyAction(state, a) {
   }
   if (a.type === 'attack') {
     const t = unitById(state, a.target);
-    const dmg = damage(state.map, u, u, t);
+    const flank = flanked(state, u, u, t);
+    const dmg = damage(state.map, u, u, t, t, state);
     t.hp -= dmg;
     const killed = t.hp <= 0;
     let counter = null;
@@ -939,7 +1012,7 @@ export function applyAction(state, a) {
       state.units = state.units.filter((x) => x.hp > 0);
       settle(state);
     }
-    return { dmg, killed, counter };
+    return { dmg, killed, counter, flank };
   }
   return null;
 }
@@ -962,10 +1035,10 @@ export function wildAction(state) {
     const prey = view.units.filter((t) => t.team !== WILD && footprint(t).some((c) => dist(c, home) <= WILD_RANGE));
     let best = null, bestS = -Infinity;
     for (const o of unitOptions(view, u)) {
-      if (o.cast || (o.target && o.cost > 0 && !prey.includes(o.target))) continue;
+      if (o.cast || o.watch || (o.target && o.cost > 0 && !prey.includes(o.target))) continue;
       let s = -o.cost * 0.01;
       if (o.target) {
-        const d = Math.min(o.target.hp, damage(view.map, u, o, o.target));
+        const d = Math.min(o.target.hp, damage(view.map, u, o, o.target, o.target, view));
         s += 100 + d * 10 + (d >= o.target.hp ? 40 : -4 * Math.min(u.hp, counterDamage(view, o.target, u, o)));
       } else if (prey.length) s -= Math.min(...prey.map((t) => unitDist(u, t, o)));
       else s -= dist(o, home);

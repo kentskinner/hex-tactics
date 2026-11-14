@@ -61,7 +61,7 @@ function newGame() {
   gen++;
   busy = false;
   const map = custom ? mapFromData(custom) : generateMap(Math.max(1, Math.floor(+$('seed').value) || 1), +$('size').value || 6);
-  state = E.createGame(map, { fog: !editing && $('fog').checked, sight: $('sight').value, counters: $('counters').checked, zoc: $('zoc').checked,
+  state = E.createGame(map, { fog: !editing && $('fog').checked, sight: $('sight').value, flank: $('flank').checked, counters: $('counters').checked, zoc: $('zoc').checked,
     mode: editing ? 'eliminate' : $('mode').value, dragons: editing ? 'none' : $('dragons').value,
     monsters: editing || $('monsters').value === 'none' ? [] : $('monsters').value === 'cave' ? E.PACKS.cave : undefined,
     wild: editing || $('wild').value === 'map' ? undefined : $('wild').value === 'none' ? [] : 'auto' });
@@ -244,12 +244,13 @@ function refresh() {
 let spellSig = '';
 function syncSpells(me) {
   const list = me && !me.acted && !ais[state.turn] && !editing ? E.CLASSES[me.cls].spells || [] : [];
-  const sig = list.map((sp) => `${sp}:${me['cd_' + sp] || 0}:${casting === sp}:${busy}`).join('|');
+  const ow = !!me && !ais[state.turn] && !editing && E.canWatch(me);
+  const sig = list.map((sp) => `${sp}:${me['cd_' + sp] || 0}:${casting === sp}:${busy}`).join('|') + (ow ? `|ow:${busy}` : '');
   if (sig === spellSig) return;
   spellSig = sig;
   const box = $('spells');
   box.textContent = '';
-  box.hidden = !list.length;
+  box.hidden = !list.length && !ow;
   list.forEach((sp, i) => {
     const cd = me['cd_' + sp] || 0, spell = E.SPELLS[sp];
     const btn = Object.assign(document.createElement('button'), {
@@ -260,6 +261,18 @@ function syncSpells(me) {
     btn.addEventListener('click', () => toggleCast(sp));
     box.appendChild(btn);
   });
+  if (ow) {
+    const btn = Object.assign(document.createElement('button'), { textContent: 'Overwatch', disabled: busy,
+      title: 'Hold the shot: fire at the first enemy that moves into range and view before this unit\'s next turn. Key O.' });
+    btn.addEventListener('click', goOnWatch);
+    box.appendChild(btn);
+  }
+}
+function goOnWatch() {
+  const me = sel !== null ? unit(sel) : null;
+  if (!me || busy || editing || ais[state.turn] || state.winner !== null || !E.canWatch(me)) return;
+  casting = null;
+  human({ type: 'overwatch', unit: me.id });
 }
 const SPELL_HELP = {
   fireball: 'Explodes on a hex: 4 damage there, 2 to everything adjacent, friend or foe. Ignores cover.',
@@ -304,15 +317,16 @@ function infoText(me) {
     if (k.burrow) lines.push('Burrows: tunnels under anything, rock included, and comes up wherever it fits');
     if (k.climb) lines.push('Climbs: height and cliffs cost nothing');
     if (state.zoc && k.rmax === 1) lines.push('Zone of control: enemies stepping adjacent must stop');
+    if (u.watch) lines.push('On overwatch: shoots the first enemy that moves into its range and view');
     if (u.frozen) lines.push(u.frozen === 2 ? 'Webbed: cannot move this turn' : 'Frozen: cannot move this turn');
     if (k.spells) {
       lines.push('Spells: ' + k.spells.map((sp) => E.SPELLS[sp].name + (u['cd_' + sp] ? ` (${u['cd_' + sp]})` : '')).join(', '));
     }
     if (view.threat) lines.push('Orange: can hit now · pale: after moving');
     if (me && view.targets.has(u.id)) {
-      const d = E.damage(state.map, me, me, u);
+      const d = E.damage(state.map, me, me, u, u, obs), fl = E.flanked(obs, me, me, u);
       const back = d >= u.hp ? 0 : E.counterDamage(obs, u, me);
-      lines.push(`→ Attack for ${d} damage${d >= u.hp ? ' (kills)' : ''}`
+      lines.push(`→ Attack for ${d} damage${fl ? ` (flanked, +${E.FLANK})` : ''}${d >= u.hp ? ' (kills)' : ''}`
         + (back ? `, takes ${back} back${back >= me.hp ? ' (fatal!)' : ''}` : d >= u.hp ? '' : ', no counter'));
     }
   }
@@ -415,10 +429,12 @@ async function perform(a) {
   if (a.type === 'move') {
     const u = unit(a.unit);
     const planned = state.fog ? null : E.pathTo(E.reachable(state, u), a);
+    const wasShown = obs.units.some((x) => x.id === u.id), ghost = { ...u };
     const ev = E.applyAction(state, a);
     const path = ev ? ev.path : planned;
+    const shots = ev?.shots || [], died = shots.some((s) => s.killed);       // overwatch fire drawn on the way
     updateFog();
-    const shown = obs.units.some((x) => x.id === u.id);    // don't animate moves the viewer can't see
+    const shown = died ? wasShown : obs.units.some((x) => x.id === u.id);    // don't animate moves the viewer can't see
     // A burrower sinks into the ground, travels as a moving mound of earth, and bursts out at the end.
     const digs = shown && E.CLASSES[u.cls].burrow && path.length > 1;
     const dirt = (p, n) => view.fx.push({ type: 'sparks', at: p, color: '#b39676', t0: performance.now(), dur: 520 / speed(),
@@ -444,8 +460,19 @@ async function perform(a) {
       for (let t = 0; t < 1 && g === gen;) {
         t = Math.min(1, (performance.now() - t0) / ms);
         view.anim = digs ? { id: u.id, x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t, mound: true }
-          : { id: u.id, x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t - Math.sin(t * Math.PI) * R.S * 0.15 };
+          : { id: u.id, unit: died ? ghost : null, x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t - Math.sin(t * Math.PI) * R.S * 0.15 };
         await sleep(12);
+      }
+      for (const s of shots.filter((x) => x.i === i)) {     // a watcher fires as it passes
+        const w = unit(s.by), seenW = !!w && obs.units.some((x) => x.id === s.by);
+        if (!digs) view.anim = { id: u.id, unit: died ? ghost : null, x: p1.x, y: p1.y };
+        const color = w ? await windUp(g, { ...w }, s.unit, seenW) : '#ffe9a8';
+        if (g !== gen) return;
+        if (s.killed) view.anim = null;
+        landBlow(s.unit, s.dmg, s.killed, color);
+        log(`${seenW ? label(w) : 'An unseen enemy'} on overwatch hits ${label(s.unit)} for ${s.dmg}${s.killed ? ' — defeated!' : ''}`);
+        refresh();
+        await sleep((s.killed ? 480 : 300) / speed());
       }
     }
     if (digs && g === gen) {
@@ -473,7 +500,7 @@ async function perform(a) {
     // If the counter is about to kill the attacker, keep it on the board until that blow lands.
     if (ev.counter?.killed) view.fx.push({ type: 'hold', unit: attacker, t0: performance.now(), dur: 60000 });
     landBlow(defender, ev.dmg, ev.killed, color);
-    log(`${who} hits ${label(defender)} for ${ev.dmg}${d > 1 ? ` from ${d} hexes` : ''}${ev.killed ? ' — defeated!' : ''}`);
+    log(`${who} hits ${label(defender)} for ${ev.dmg}${d > 1 ? ` from ${d} hexes` : ''}${ev.flank ? ' (flanked)' : ''}${ev.killed ? ' — defeated!' : ''}`);
     refresh();
     await windDown(g, attacker, defender, seen);
     await sleep((ev.killed ? 480 : 260) / sp);
@@ -555,6 +582,7 @@ async function perform(a) {
     refresh();
     await sleep((spell.blink ? 320 : 560) / sp);
   } else {
+    if (a.type === 'overwatch') { const w = unit(a.unit); if (w && obs.units.some((x) => x.id === w.id)) { log(`${label(w)} goes on overwatch`); play('charge'); } }
     const ev = E.applyAction(state, a.type === 'endTurn' ? { ...a, step: true } : a);
     if (a.type === 'endTurn' && ev) {                       // hold the points: captures, then scoring
       for (const c of ev.captured) {
@@ -628,7 +656,7 @@ async function human(a) {
   await perform(a);
   if (g !== gen) return;
   busy = false;
-  if (a.type === 'attack' || a.type === 'cast') { undo = null; sel = null; }
+  if (a.type === 'attack' || a.type === 'cast' || a.type === 'overwatch') { undo = null; sel = null; }
   reach = null;
   const left = state.units.some((u) => u.team === state.turn && !u.acted);
   if (state.winner === null && !left) return endTurn();
@@ -1088,6 +1116,7 @@ window.addEventListener('keydown', (ev) => {
   if (ev.key === 'ArrowDown') return R.panBy(0, -step);
   if (ev.key === 'e' || ev.key === 'E') endTurn();
   else if (ev.key === 'u' || ev.key === 'U') undoMove();
+  else if (ev.key === 'o' || ev.key === 'O') goOnWatch();
   else if (ev.key === 'Escape') { if (casting) casting = null; else sel = reach = null; refresh(); }
   else if (ev.key >= '1' && ev.key <= '9') {
     const me = sel !== null ? unit(sel) : null, sp = me && (E.CLASSES[me.cls].spells || [])[+ev.key - 1];
@@ -1116,7 +1145,7 @@ $('rand').addEventListener('click', () => {
 $('seed').addEventListener('change', () => { if (!custom) newGame(); });
 $('fogView').addEventListener('change', () => { sel = reach = null; refresh(); });
 $('size').addEventListener('change', () => { if (!custom) newGame(); });
-for (const id of ['fog', 'sight', 'counters', 'zoc', 'mode', 'dragons', 'monsters', 'wild']) $(id).addEventListener('change', () => { if (!editing) newGame(); });
+for (const id of ['fog', 'sight', 'counters', 'zoc', 'flank', 'mode', 'dragons', 'monsters', 'wild']) $(id).addEventListener('change', () => { if (!editing) newGame(); });
 window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 $('sound').checked = store('sound') !== 'off';
