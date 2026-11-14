@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 100 100">
+  <!-- Drawn in the Blue team colours (#5b9bf0, #2f6fd6, #173763); the game recolours them for Red. -->
+  <defs>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff3c4"/><stop offset=".45" stop-color="#d9a441"/><stop offset="1" stop-color="#7a5318"/>
+    </linearGradient>
+    <radialGradient id="field" cx=".35" cy=".3" r=".85">
+      <stop offset="0" stop-color="#5b9bf0"/><stop offset=".6" stop-color="#2f6fd6"/><stop offset="1" stop-color="#173763"/>
+    </radialGradient>
+    <radialGradient id="skin" cx=".4" cy=".3" r=".8">
+      <stop offset="0" stop-color="#b4d478"/><stop offset=".6" stop-color="#7aa648"/><stop offset="1" stop-color="#46682c"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48.5" fill="#2e210c"/>
+  <circle cx="50" cy="50" r="47" fill="url(#rim)"/>
+  <circle cx="50" cy="50" r="41.5" fill="#2e210c"/>
+  <circle cx="50" cy="50" r="40.5" fill="url(#field)"/>
+  <path d="M17 45 A34 34 0 0 1 60 18" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="2.4" stroke-linecap="round"/>
+  <!-- goblin: narrow face, huge ears, a toothy grin -->
+  <g stroke="#1a1d14" stroke-width="1.8" stroke-linejoin="round">
+    <path d="M33 46 L8 30 L28 60 Z M67 46 L92 30 L72 60 Z" fill="url(#skin)"/>
+    <path d="M50 24 C63 24 70 34 69 47 C68 62 60 78 50 80 C40 78 32 62 31 47 C30 34 37 24 50 24 Z" fill="url(#skin)"/>
+    <path d="M47 50 L50 62 L53 50 Z" fill="#5f7a34"/>
+    <path d="M38 65 C45 69 55 69 62 65 C58 73 42 73 38 65 Z" fill="#2a1512"/>
+    <path d="M41 66.500 L43 71 L45 67.500 Z M55 67.500 L57 71 L59 66.500 Z M48 68 L50 72 L52 68 Z" fill="#f3ead2" stroke-width="1"/>
+    <path d="M35 41 L46 45 M65 41 L54 45" fill="none" stroke-width="2.4" stroke-linecap="round"/>
+  </g>
+  <circle cx="41.500" cy="48" r="2.600" fill="#ffd34a"/><circle cx="58.500" cy="48" r="2.600" fill="#ffd34a"/>
+  <circle cx="41.500" cy="48" r="1" fill="#1a1d14"/><circle cx="58.500" cy="48" r="1" fill="#1a1d14"/>
+</svg>

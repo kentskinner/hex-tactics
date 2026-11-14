@@ -1,5 +1,5 @@
 // 2.5D canvas renderer: hexes are drawn as prisms, back row first, so height reads naturally.
-import { CLASSES, footprint, isBig } from './engine.js';
+import { CLASSES, footprint, isBig, maxHp } from './engine.js';
 import { key, DIRS, hexRound } from './hex.js';
 import { buildings } from './paint.js';
 import { paintedTokens } from './tokens.js';
@@ -878,7 +878,7 @@ export class Renderer {
   unit(u, x, y, state) {
     const ctx = this.ctx, S = this.S, col = TEAM[u.team], cls = CLASSES[u.cls];
     if (this.flat) {                                 // round token that stays inside its hex
-      const f = u.hp / cls.hp, img = this.tokens?.[u.cls]?.[u.team], r = S * (img ? 0.56 : 0.46);
+      const f = u.hp / maxHp(u), img = this.tokens?.[u.cls]?.[u.team], r = S * (img ? 0.56 : 0.46);
       // A painted figure when there is one — but a one-hex figure too small to make out falls back to its coin.
       const figure = (isBig(u) || S >= 20) && this.painted ? this.painted.get(u.cls, u.team, this.facing?.get(u.id)) : null;
       if (!figure) {
@@ -906,6 +906,12 @@ export class Renderer {
       ctx.fillStyle = '#111'; ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
       ctx.fillStyle = f > 0.5 ? '#5fd35f' : f > 0.25 ? '#f0c040' : '#f05040';
       ctx.fillRect(bx, by, bw * f, bh);
+      if (u.hero) {                                  // a gold star beside a hero's health bar
+        const sx = bx - bh * 1.5, sy = by + bh / 2, R = bh * 1.25;
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? R * 0.45 : R; ctx.lineTo(sx + Math.cos(a) * rr, sy + Math.sin(a) * rr); }
+        ctx.closePath(); ctx.fillStyle = '#ffd34a'; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = '#3a2808'; ctx.stroke();
+      }
       return;
     }
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -927,7 +933,7 @@ export class Renderer {
     ctx.restore();
 
     const bw = S * 0.84, bh = Math.max(4, S * 0.13), bx = x - bw / 2, by = y - S * 1.2;
-    const f = u.hp / cls.hp;
+    const f = u.hp / maxHp(u);
     ctx.fillStyle = '#111'; ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
     ctx.fillStyle = f > 0.5 ? '#5fd35f' : f > 0.25 ? '#f0c040' : '#f05040';
     ctx.fillRect(bx, by, bw * f, bh);

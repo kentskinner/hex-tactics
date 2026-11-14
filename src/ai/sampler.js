@@ -30,7 +30,7 @@ export default {
       if (!belief) {
         belief = new Map();
         for (const s of state.roster) {
-          if (s.team === foe) belief.set(s.id, { q: s.q, r: s.r, o: s.o, cls: s.cls, hp: CLASSES[s.cls].hp, tick: 2 - team });
+          if (s.team === foe) belief.set(s.id, { q: s.q, r: s.r, o: s.o, cls: s.cls, hp: s.max || CLASSES[s.cls].hp, tick: 2 - team });
         }
       }
       const seen = new Set();

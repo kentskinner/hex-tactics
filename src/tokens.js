@@ -255,6 +255,30 @@ function troll(team, facing = FACING[team]) {
   });
 }
 
+// Goblin: small and wiry — green skin, huge pointed ears, a ragged hood in the team's colour, a
+// crooked knife in one hand and a little buckler in the other.
+function goblin(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    const skin = [122, 166, 72], shade = [70, 104, 44];
+    shape(c, [[-0.02, -0.17], [-0.16, -0.19], [-0.27, -0.06], [-0.22, 0.02], [-0.29, 0.1], [-0.15, 0.19], [-0.02, 0.17]], rgb(T.dark), LW);   // ragged cape
+    shape(c, ellipse(0.12, 0.22, 0.14, 0.055, -0.25), rgb(skin), 0.024);                                            // knife arm
+    shape(c, [[0.22, 0.2], [0.5, 0.1], [0.6, 0.15], [0.47, 0.2], [0.25, 0.27]], rgb(STEEL[0]), 0.024);              // crooked blade
+    shape(c, ellipse(0.23, 0.235, 0.05, 0.05), rgb(skin), 0.02);
+    shape(c, ellipse(0.1, -0.2, 0.13, 0.055, 0.3), rgb(skin), 0.024);                                               // shield arm
+    shape(c, ellipse(0.24, -0.25, 0.14, 0.14), rgb(WOOD), LW);                                                      // buckler
+    shape(c, ellipse(0.24, -0.25, 0.05, 0.05), rgb(STEEL[1]), 0.02);
+    shape(c, ellipse(-0.02, 0, 0.13, 0.22), rgb(LEATHER[1]), LW);                                                   // narrow shoulders
+    for (const s of [-1, 1]) shape(c, [[0.02, 0.1 * s], [-0.1, 0.4 * s], [0.14, 0.15 * s]], rgb(skin), 0.024);       // ears
+    for (const s of [-1, 1]) shape(c, [[0.03, 0.14 * s], [-0.04, 0.31 * s], [0.09, 0.16 * s]], rgb(shade), 0);
+    const g = c.createRadialGradient(0.03, -0.05, 0.01, 0.07, 0, 0.17);
+    g.addColorStop(0, rgb(mix(skin, [240, 255, 200], 0.4))); g.addColorStop(1, rgb(skin));
+    shape(c, ellipse(0.07, 0, 0.16, 0.15), g, LW);                                                                  // head
+    shape(c, [[0.06, -0.15], [-0.1, -0.13], [-0.19, 0], [-0.1, 0.13], [0.06, 0.15], [0.0, 0]], rgb(T.base), 0.024); // hood, pushed back
+    shape(c, [[0.2, -0.03], [0.31, 0], [0.2, 0.03]], rgb(skin), 0.02);                                              // long nose
+    for (const s of [-1, 1]) { c.fillStyle = 'rgb(255,214,60)'; c.beginPath(); c.arc(0.15, 0.065 * s, 0.022, 0, 6.3); c.fill(); }
+  });
+}
+
 // ---- Dragon: no ring at all — the creature itself, wings spread across its seven hexes ----
 function dragon(team, facing = FACING[team]) {
   const T = TEAM[team], half = 2.55, U = 120;
@@ -427,7 +451,7 @@ function worm(team, facing = FACING[team]) {
 // A figure is repainted for each facing rather than turned as a picture, because the light and the
 // shadow must stay put while the figure turns. Facings are rounded to steps of 15 degrees.
 export function paintedTokens() {
-  const painters = { soldier, archer, scout, wizard, spider, bat, troll, dragon, ogre, worm }, cache = new Map(), STEP = Math.PI / 12;
+  const painters = { soldier, archer, scout, wizard, spider, bat, troll, goblin, dragon, ogre, worm }, cache = new Map(), STEP = Math.PI / 12;
   return {
     has: (cls) => !!painters[cls],
     facing: (team) => FACING[team] ?? 0,

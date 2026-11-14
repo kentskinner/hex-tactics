@@ -54,6 +54,7 @@ export const CLASSES = {
   worm:    { name: 'Rock worm',    glyph: 'M', hp: 20, atk: 6, move: 3, rmin: 1, rmax: 1, sight: 3, size: 'large', burrow: true, value: 1.5 },
   // regen: heals that much at the start of each of its own turns.
   troll:   { name: 'Cave troll',   glyph: 'T', hp: 22, atk: 6, move: 3, rmin: 1, rmax: 1, sight: 4, regen: 2 },
+  goblin:  { name: 'Goblin',  glyph: 'G', hp: 8,  atk: 4, move: 4, rmin: 1, rmax: 1, sight: 4, value: 0.5 },     // weak alone, dangerous in numbers
   wizard:  { name: 'Wizard',  glyph: 'W', hp: 8,  atk: 4, move: 3, rmin: 1, rmax: 3, sight: 5, pierce: true, spells: ['fireball', 'frost', 'blink'] },   // lightning ignores cover
 };
 
@@ -72,6 +73,11 @@ export const SPELLS = {
   web:      { name: 'Web',        rmin: 2, rmax: 3, cooldown: 3, dmg: 1, splash: 1, area: true, freeze: true, snare: true },
   blink:    { name: 'Blink',      rmin: 1, rmax: 4, cooldown: 3, blink: true },
 };
+
+// Heroes: a spawn marked `hero: true` makes a unit with HERO_HP times its class's hit points that hits
+// HERO_ATK harder — a party of a few against many. A unit's full health is maxHp(u).
+export const HERO_HP = 2, HERO_ATK = 0;
+export const maxHp = (u) => u.max || CLASSES[u.cls].hp;
 
 // Ground nothing can stand on (rock, lava).
 export const impassable = (c) => TERRAIN[c.t].cost === Infinity;
@@ -150,13 +156,18 @@ export function fits(state, unit, at = unit) {
 //       reaching `target` (map.siege.target, default 2) or by wiping the defenders out; the defender
 //       wins by wiping the attackers out or by lasting to the round limit (map.siege.rounds).
 //       A map that has a `siege` entry is played this way unless another mode is asked for.
+//       'raid' — asymmetric. The attackers must wipe the defenders (map.raid.defender, default 1 = Red)
+//       out before the round limit (map.raid.rounds); otherwise the defenders win. A map that has
+//       a `raid` entry is played this way unless another mode is asked for.
 //       'hold' — control points. At the end of each team's turn, any point with a unit standing on
 //       it goes to that unit's team and stays theirs until an enemy stands on it; the team whose
 //       turn is ending then scores 1 per point it owns. First to `target` wins (default 2 per
 //       point); wiping the enemy out still wins too. Points come from map.objectives, or are
 //       placed automatically along the line where the two armies meet.
 export function createGame(map, { maxRounds = 0, fog = false, counters = true, zoc = true, mode, target = 0, dragons = 'none', monsters, wild } = {}) {
-  if (!mode) mode = map.siege ? 'siege' : 'eliminate';
+  if (!mode) mode = map.siege ? 'siege' : map.raid ? 'raid' : 'eliminate';
+  const raid = mode === 'raid' ? { defender: 1, ...(map.raid || {}) } : null;
+  if (!maxRounds && raid?.rounds) maxRounds = raid.rounds;
   const siege = mode === 'siege' ? { defender: 1, target: 2, ...(map.siege || {}) } : null;
   if (!maxRounds && siege?.rounds) maxRounds = siege.rounds;
   if (!maxRounds) {                                // 30, or longer when the armies start far apart
@@ -168,7 +179,9 @@ export function createGame(map, { maxRounds = 0, fog = false, counters = true, z
   for (const team of [0, 1]) {
     map.spawns[team].forEach((s, i) => {
       const cls = s.cls || ROSTER[i % ROSTER.length];
-      units.push({ id: units.length, team, cls, q: s.q, r: s.r, hp: CLASSES[cls].hp, moved: false, acted: false });
+      const u = { id: units.length, team, cls, q: s.q, r: s.r, hp: CLASSES[cls].hp, moved: false, acted: false };
+      if (s.hero) { u.hero = true; u.max = u.hp = CLASSES[cls].hp * HERO_HP; }
+      units.push(u);
     });
   }
   // dragons: 'none' | 'both' | 'red' | 'blue' — an extra Dragon for those teams, behind their line.
@@ -245,10 +258,10 @@ export function createGame(map, { maxRounds = 0, fog = false, counters = true, z
     if (siege && !placed.length) objectives = objectives.slice(0, 1);
   }
   // roster: both starting line-ups (public knowledge, even under fog).
-  const roster = units.map(({ id, team, cls, q, r, o }) => ({ id, team, cls, q, r, o }));
+  const roster = units.map(({ id, team, cls, q, r, o, hero, max }) => ({ id, team, cls, q, r, o, ...(hero ? { hero, max } : {}) }));
   return { map, units, roster, turn: 0, round: 1, winner: null, maxRounds, fog, counters, zoc,
     mode, objectives, owners: objectives.map(() => (siege ? siege.defender : null)), score: [0, 0],
-    defender: siege ? siege.defender : null, target: target || (siege ? siege.target : 2 * objectives.length) };
+    defender: siege ? siege.defender : raid ? raid.defender : null, target: target || (siege ? siege.target : 2 * objectives.length) };
 }
 
 export const clone = (s) => ({ ...s, units: s.units.map((u) => ({ ...u })), owners: s.owners.slice(), score: s.score.slice() });
@@ -531,7 +544,7 @@ export function damage(map, attacker, from, target, at = target) {
   }
   if (cls.pierce) cover = Math.min(0, cover);
   const h = Math.max(-2, Math.min(2, high - low));
-  return Math.max(1, cls.atk + h - cover - (wet ? 1 : 0));
+  return Math.max(1, cls.atk + (attacker.hero ? HERO_ATK : 0) + h - cover - (wet ? 1 : 0));
 }
 
 // Damage `defender` would deal back to `attacker` (standing on `from`) after surviving its attack:
@@ -811,10 +824,10 @@ export function applyAction(state, a) {
       if (u.team === ending && u.frozen) u.frozen = 0;                         // its frozen turn is over
       if (u.team !== state.turn) continue;
       for (const sp of CLASSES[u.cls].spells || []) if (u['cd_' + sp] > 0) u['cd_' + sp]--;
-      if (CLASSES[u.cls].regen) u.hp = Math.min(CLASSES[u.cls].hp, u.hp + CLASSES[u.cls].regen);
+      if (CLASSES[u.cls].regen) u.hp = Math.min(maxHp(u), u.hp + CLASSES[u.cls].regen);
     }
     if (state.round > state.maxRounds) {         // out of time: on points if there are any, else a draw
-      if (state.mode === 'siege') { state.winner = state.defender; return ev; }      // the keep held out
+      if (state.mode === 'siege' || state.mode === 'raid') { state.winner = state.defender; return ev; }      // the keep (or the colony) held out
       const [s0, s1] = state.score;
       state.winner = s0 > s1 ? 0 : s1 > s0 ? 1 : 'draw';
     }
@@ -928,7 +941,7 @@ export function evaluate(state, team) {
   if (state.winner === team) return 1000;
   if (state.winner === 1 - team) return -1000;
   let v = 0;
-  for (const u of state.units) v += (u.team === team ? 1 : u.team === WILD ? -0.25 : -1) * (4 + 6 * u.hp / CLASSES[u.cls].hp) * (CLASSES[u.cls].value || 1);
+  for (const u of state.units) v += (u.team === team ? 1 : u.team === WILD ? -0.25 : -1) * (4 + 6 * u.hp / maxHp(u)) * (CLASSES[u.cls].value || 1) * (u.hero ? HERO_HP : 1);
   if (state.unseen) v += (state.observer === team ? -1 : 1) * state.unseen * 8;   // enemies we can't see still count
   if (state.mode === 'siege') {                  // the attacker wants points and has a clock against it
     const att = 1 - state.defender, side = team === att ? 1 : -1;

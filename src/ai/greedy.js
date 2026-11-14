@@ -3,7 +3,7 @@
 import { CLASSES, TERRAIN, SPELLS, cellAt, unitOptions, damage, distanceField, applyAction, visibleCells, spellHits, counterDamage, footprint } from '../engine.js';
 import { key, dist } from '../hex.js';
 
-function scoreOption(state, u, o, enemies, field) {
+function scoreOption(state, u, o, enemies, field, asleep = false) {
   const cell = cellAt(state.map, o);
   const ranged = CLASSES[u.cls].rmax > 1;
   // Cover and height only matter once the enemy is close; otherwise a unit would camp in the first ruin it finds.
@@ -32,10 +32,13 @@ function scoreOption(state, u, o, enemies, field) {
     const i = state.objectives.findIndex((p) => on.some((c) => c.q === p.q && c.r === p.r));
     if (i >= 0 && state.owners[i] !== u.team) s += state.owners[i] === null ? 30 : 42;
   }
-  s -= (field.get(key(o.q, o.r)) ?? 99) * (ranged ? 1.5 : 2.5);       // close the distance
+  if (asleep) s -= dist(o, u) * 2;                                    // nobody near: stay put
+  else s -= (field.get(key(o.q, o.r)) ?? 99) * (ranged ? 1.5 : 2.5);  // close the distance
   if (ranged && enemies.some((e) => dist(e, o) < 2)) s -= 8;          // archers hate melee
   return s;
 }
+
+const WAKE = 10;                                     // moves away at which a raided colony's defenders stir
 
 // Best next action for the side to move, or null when every unit is done.
 // noise > 1 picks randomly among the top `noise` options (used by the sampler to diversify plans).
@@ -58,7 +61,9 @@ export function bestAction(state, noise = 0, rng = Math.random, goals = []) {
   const cands = [];
   for (const u of state.units) {
     if (u.team !== state.turn || u.acted) continue;
-    for (const o of unitOptions(state, u)) cands.push({ u, o, s: scoreOption(state, u, o, enemies, field) });
+    // A colony being raided doesn't march out: each defender keeps its post until a raider comes near.
+    const asleep = state.mode === 'raid' && u.team === state.defender && (field.get(key(u.q, u.r)) ?? 99) > WAKE;
+    for (const o of unitOptions(state, u)) cands.push({ u, o, s: scoreOption(state, u, o, enemies, field, asleep) });
   }
   if (!cands.length) return null;
   cands.sort((a, b) => b.s - a.s);

@@ -223,17 +223,18 @@ function refresh() {
   $('undo').title = state.fog ? 'Not available under fog of war (a move may reveal enemies)' : '';
   if (state.winner !== null) {
     b.className = 'over';
-    const heldOut = state.mode === 'siege' && state.winner === state.defender && state.units.some((u) => u.team !== state.winner);
+    const heldOut = (state.mode === 'siege' || state.mode === 'raid') && state.winner === state.defender && state.units.some((u) => u.team !== state.winner);
     const onPoints = (state.mode === 'hold' || state.mode === 'siege') && !heldOut && state.winner !== 'draw' && state.units.some((u) => u.team !== state.winner);
     b.textContent = state.winner === 'draw' ? 'Draw — round limit reached'
-      : heldOut ? `${TEAM[state.winner]} wins — the keep held out!`
+      : heldOut ? `${TEAM[state.winner]} wins — the ${state.mode === 'raid' ? 'colony survived' : 'keep held out'}!`
       : `${TEAM[state.winner]} wins${onPoints ? ` on points, ${state.score[state.winner]}–${state.score[1 - state.winner]}` : ''}!`;
   } else {
     b.className = 't' + state.turn;
     const who = state.turn === E.WILD ? 'neutral monsters' : ais[state.turn] ? AIS[$('ctl' + state.turn).value].label + (thinking ? ', thinking\u2026' : '') : 'your move';
     b.textContent = `Round ${state.round}/${state.maxRounds} — ${TEAM[state.turn]} (${who})`
       + (state.mode === 'hold' ? `  ·  Blue ${state.score[0]} – ${state.score[1]} Red, first to ${state.target}` : '')
-      + (state.mode === 'siege' ? `  ·  ${TEAM[1 - state.defender]} ${state.score[1 - state.defender]}/${state.target} to take the keep · ${TEAM[state.defender]} must hold to round ${state.maxRounds}` : '');
+      + (state.mode === 'siege' ? `  ·  ${TEAM[1 - state.defender]} ${state.score[1 - state.defender]}/${state.target} to take the keep · ${TEAM[state.defender]} must hold to round ${state.maxRounds}` : '')
+      + (state.mode === 'raid' ? `  ·  ${TEAM[1 - state.defender]} must clear out ${TEAM[state.defender]} by round ${state.maxRounds}` : '');
   }
   $('info').textContent = infoText(me);
 }
@@ -290,8 +291,8 @@ function infoText(me) {
   if (view.fogVis && !view.fogVis.has(key(hover.q, hover.r))) lines.push('Out of sight');
   if (u) {
     const k = E.CLASSES[u.cls];
-    lines.push(`${label(u)} — HP ${u.hp}/${k.hp}`,
-      `ATK ${k.atk} · move ${k.move} · range ${k.rmin === k.rmax ? k.rmin : k.rmin + '–' + k.rmax + ' (+1 from high ground)'}${state.fog ? ` · sight ${k.sight}` : ''}`);
+    lines.push(`${u.hero ? 'Hero ' : ''}${label(u)} — HP ${u.hp}/${E.maxHp(u)}`,
+      `ATK ${k.atk + (u.hero ? E.HERO_ATK : 0)} · move ${k.move} · range ${k.rmin === k.rmax ? k.rmin : k.rmin + '–' + k.rmax + ' (+1 from high ground)'}${state.fog ? ` · sight ${k.sight}` : ''}`);
     if (k.size === 'large') lines.push('Large: occupies 3 hexes, cannot fit through single-hex gaps');
     if (k.pierce) lines.push('Lightning ignores cover');
     if (k.regen) lines.push(`Regenerates ${k.regen} HP at the start of each of its turns`);
@@ -683,7 +684,7 @@ async function openSavedMap(name) {
   custom = data;
   R.backdrop = bd;
   // A siege map is played as a siege; leaving one goes back to plain elimination.
-  if (data.siege) $('mode').value = 'siege'; else if ($('mode').value === 'siege') $('mode').value = 'eliminate';
+  if (data.siege) $('mode').value = 'siege'; else if (data.raid) $('mode').value = 'raid'; else if ($('mode').value === 'siege' || $('mode').value === 'raid') $('mode').value = 'eliminate';
   setOverlay(data.backdrop?.overlay ?? 0.4);
   if (bd) setView(true);
   store('map', name);
