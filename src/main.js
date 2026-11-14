@@ -401,7 +401,7 @@ function landBlow(victim, dmg, killed, color) {
 
 // Turn a painted figure to face a hex or unit, in quick steps (the shorter way round).
 async function face(u, target) {
-  if (!R.painted?.has(u.cls) || !R.flat) return;
+  if (!R.painted?.has(u.cls)) return;
   const a = R.centre(spot(u)), b = R.centre(target);
   if (!a || !b || (Math.abs(b.x - a.x) < 1 && Math.abs(b.y - a.y) < 1)) return;
   const to = Math.atan2(b.y - a.y, b.x - a.x), from = R.facing.get(u.id) ?? R.painted.facing(u.team);
@@ -701,7 +701,6 @@ async function openSavedMap(name) {
   if (scenario && dragonsBefore === null) { dragonsBefore = $('dragons').value; $('dragons').value = 'none'; }
   else if (!scenario && dragonsBefore !== null) { $('dragons').value = dragonsBefore; dragonsBefore = null; }
   setOverlay(data.backdrop?.overlay ?? 0.4);
-  if (bd) setView(true);
   store('map', name);
   const problem = mapProblem(mapFromData(data));
   if (problem) {                                        // unfinished map: open it in the editor instead
@@ -775,7 +774,6 @@ $('edCeiling').addEventListener('change', () => {
 
 function enterEdit() {
   if (!custom) custom = mapToData(state.map);          // start from the generated map
-  setView(true);
   setEditing(true);
   $('edName').value = custom.name || '';
   $('edCeiling').checked = !!custom.ceiling;
@@ -1107,11 +1105,6 @@ for (const t of [0, 1]) {
   s.addEventListener('change', () => { gen++; busy = false; view.anim = null; makeAIs(); sel = reach = undo = null; pump(); });
 }
 
-function setView() {                                    // the game is top-down only now (the 2.5D view is gone)
-  R.flat = true;
-  if (state) R.layout(state.map);
-}
-setView();
 $('zoomIn').addEventListener('click', () => R.zoomBy(1.25));
 $('zoomOut').addEventListener('click', () => R.zoomBy(0.8));
 $('zoomFit').addEventListener('click', () => R.fit());

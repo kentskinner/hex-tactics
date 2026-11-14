@@ -1,11 +1,10 @@
-// 2.5D canvas renderer: hexes are drawn as prisms, back row first, so height reads naturally.
+// Canvas renderer: the board seen from straight above.
 import { CLASSES, footprint, isBig, maxHp } from './engine.js';
 import { key, DIRS, hexRound } from './hex.js';
 import { buildings } from './paint.js';
 import { paintedTokens } from './tokens.js';
 
-// Two views share this code. Top-down (flat): undistorted hexes, height shown by shade, a number
-// and contour/cliff edges. 2.5D: ground plane squashed vertically and hexes raised by elevation.
+// Height is shown by shade, a number and contour/cliff edges; on a painted map the picture carries it.
 const R3 = Math.sqrt(3);
 const TOP = {
   grass: ['#6aa84f', '#7fb85a', '#98c466', '#b7cf7a'],
@@ -24,7 +23,6 @@ export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    this.flat = true;
     this.grid = 1;            // strength of the hex grid lines, 0..1
     this.overlay = 0.4;       // opacity of the terrain tint drawn over a backdrop image
   }
@@ -56,16 +54,15 @@ export class Renderer {
     this.canvas.width = Math.round(w * dpr);
     this.canvas.height = Math.round(h * dpr);
     Object.assign(this, { dpr, w, h, map });
-    const SQ = this.sq = this.flat ? 1 : 0.62;     // vertical squash of the ground plane
     // Fit the board's bounding box (any shape), plus `pad` hexes of margin while editing.
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (const c of Object.values(map.cells)) {
-      const x = R3 * (c.q + c.r / 2), y = 1.5 * c.r * SQ;
+      const x = R3 * (c.q + c.r / 2), y = 1.5 * c.r;
       x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
     }
     const pad = this.pad || 0;
     x0 -= pad * R3; x1 += pad * R3; y0 -= pad * 1.5; y1 += pad * 1.5;
-    this.S = Math.min(w / (x1 - x0 + R3 + 0.7), h / (y1 - y0 + 2 * SQ + (this.flat ? 0.6 : 0.42 * 5.2)));
+    this.S = Math.min(w / (x1 - x0 + R3 + 0.7), h / (y1 - y0 + 2.6));
     // Camera: zoom (1 = the whole board fits) and pan (screen pixels). A board of a different size starts fitted.
     const count = Object.keys(map.cells).length;
     if (this.fitted !== undefined && Math.abs(count - this.fitted) > 8) { this.zoom = 1; this.panX = 0; this.panY = 0; }
@@ -76,9 +73,8 @@ export class Renderer {
     const maxX = this.S * (x1 - x0) / 2, maxY = this.S * (y1 - y0) / 2;      // keep the board's centre on screen
     this.panX = Math.max(-maxX, Math.min(maxX, this.panX || 0));
     this.panY = Math.max(-maxY, Math.min(maxY, this.panY || 0));
-    this.EH = this.flat ? 0 : this.S * 0.42;       // pixels per elevation level
     this.ox = w / 2 - this.S * (x0 + x1) / 2 + this.panX;
-    this.oy = h / 2 - this.S * (y0 + y1) / 2 + this.EH * 1.4 + this.panY;
+    this.oy = h / 2 - this.S * (y0 + y1) / 2 + this.panY;
     this.rebuild();
   }
 
@@ -98,8 +94,8 @@ export class Renderer {
     this.order = Object.values(this.map.cells).sort((a, b) => a.r - b.r || a.q - b.q);
     this.geo = new Map();
     for (const c of this.order) {
-      const p = this.pos(c.q, c.r, c.e - (c.t === 'water' ? 0.3 : 0));
-      this.geo.set(key(c.q, c.r), { ...p, pts: this.corners(p), drop: (c.e + 1 - (c.t === 'water' ? 0.3 : 0)) * this.EH });
+      const p = this.pos(c.q, c.r);
+      this.geo.set(key(c.q, c.r), { ...p, pts: this.corners(p) });
     }
   }
 
@@ -107,34 +103,25 @@ export class Renderer {
     const pts = [];
     for (let i = 0; i < 6; i++) {
       const a = (Math.PI / 180) * (60 * i + 30);
-      pts.push([p.x + this.S * Math.cos(a), p.y + this.S * Math.sin(a) * this.sq]);
+      pts.push([p.x + this.S * Math.cos(a), p.y + this.S * Math.sin(a)]);
     }
     return pts;
   }
 
-  // Top-down only: the hex coordinate under a screen point, whether or not a cell exists there.
+  // The hex coordinate under a screen point, whether or not a cell exists there.
   hexAt(x, y) {
     const r = (y - this.oy) / (1.5 * this.S);
     return hexRound((x - this.ox) / (R3 * this.S) - r / 2, r);
   }
 
-  pos(q, r, e = 0) {
-    return { x: this.ox + this.S * R3 * (q + r / 2), y: this.oy + this.S * 1.5 * r * this.sq - e * this.EH };
+  pos(q, r) {
+    return { x: this.ox + this.S * R3 * (q + r / 2), y: this.oy + this.S * 1.5 * r };
   }
 
-  // Screen point -> {q, r} of the unit or hex top under it (front-most first), or null.
-  pick(x, y, state) {
-    const S = this.S;
-    for (const u of this.flat ? [] : [...state.units].sort((a, b) => b.r - a.r)) {
-      const g = this.geo.get(key(u.q, u.r));
-      if (Math.abs(x - g.x) < S * 0.32 && y < g.y && y > g.y - S * 1.05) return { q: u.q, r: u.r };
-    }
-    for (let i = this.order.length - 1; i >= 0; i--) {
-      const c = this.order[i];
-      this.topPath(this.geo.get(key(c.q, c.r)));
-      if (this.ctx.isPointInPath(x * this.dpr, y * this.dpr)) return { q: c.q, r: c.r };
-    }
-    return null;
+  // Screen point -> {q, r} of the hex under it, or null if there is no cell there.
+  pick(x, y) {
+    const h = this.hexAt(x, y);
+    return this.geo.has(key(h.q, h.r)) ? h : null;
   }
 
   topPath(g) {
@@ -151,7 +138,7 @@ export class Renderer {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.clearRect(0, 0, this.w, this.h);
     ctx.lineJoin = 'round';
-    const bd = this.flat ? this.backdrop : null;
+    const bd = this.backdrop;
     if (bd) {
       // backdrop: {img, hexPx, ox, oy} — hexPx is one hex's width in image pixels, and image
       // point (ox, oy) sits under the centre hex.
@@ -167,13 +154,10 @@ export class Renderer {
     const byCell = new Map();                        // every hex of every unit's footprint
     for (const u of state.units) for (const c of footprint(u)) byCell.set(key(c.q, c.r), u);
 
-    if (this.flat) {
-      for (const c of this.order) this.cell(c, this.geo.get(key(c.q, c.r)));
-      this.contours();
-    }
+    for (const c of this.order) this.cell(c, this.geo.get(key(c.q, c.r)));
+    this.contours();
     for (const c of this.order) {
       const k = key(c.q, c.r), g = this.geo.get(k), u = byCell.get(k);
-      if (!this.flat) this.cell(c, g);
       const fill = (style) => { this.topPath(g); ctx.fillStyle = style; ctx.fill(); };
       const ring = (style, lw) => { this.topPath(g); ctx.strokeStyle = style; ctx.lineWidth = lw; ctx.stroke(); };
       if (ui.reachCells?.has(k)) {
@@ -192,7 +176,7 @@ export class Renderer {
       if (ui.scorch?.has(k)) {                       // burn mark left by a fireball
         const rot = ui.scorch.get(k), r = this.S * 1.25;
         ctx.save();
-        ctx.translate(g.x, g.y); ctx.scale(1, this.sq); ctx.rotate(rot);
+        ctx.translate(g.x, g.y); ctx.rotate(rot);
         const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
         grad.addColorStop(0, 'rgba(18,12,8,0.72)'); grad.addColorStop(0.45, 'rgba(30,18,10,0.5)'); grad.addColorStop(1, 'rgba(40,24,12,0)');
         ctx.fillStyle = grad;
@@ -239,9 +223,8 @@ export class Renderer {
       ctx.globalAlpha = 1;
       ctx.font = `bold ${Math.round(this.S * 0.7)}px system-ui, sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      const ty = p.y - (this.flat ? 0 : this.S * 0.45);
-      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText('?', p.x, ty);
-      ctx.fillStyle = '#fff'; ctx.fillText('?', p.x, ty);
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText('?', p.x, p.y);
+      ctx.fillStyle = '#fff'; ctx.fillText('?', p.x, p.y);
       ctx.textBaseline = 'alphabetic';
     }
     if (ui.ghost) {                                  // editor: outline of a hex that doesn't exist yet
@@ -320,7 +303,7 @@ export class Renderer {
     ctx.translate(p.x + dx, p.y); ctx.scale(k, k);
     this.unit(u, 0, 0, state);
     if (u.frozen === 2) {                          // caught in a web: spokes and sagging rings
-      const cy = this.flat ? 0 : -this.S * 0.42, r = this.S * 0.62;
+      const cy = 0, r = this.S * 0.62;
       ctx.strokeStyle = 'rgba(250,250,245,0.9)'; ctx.lineWidth = 1.6;
       ctx.beginPath();
       for (let i = 0; i < 8; i++) { const an = i * Math.PI / 4 + 0.2; ctx.moveTo(0, cy); ctx.lineTo(Math.cos(an) * r, cy + Math.sin(an) * r); }
@@ -333,7 +316,7 @@ export class Renderer {
       }
       ctx.stroke();
     } else if (u.frozen) {
-      const cy = this.flat ? 0 : -this.S * 0.42, r = this.S * 0.6;
+      const cy = 0, r = this.S * 0.6;
       ctx.fillStyle = 'rgba(170,230,255,0.3)'; ctx.strokeStyle = 'rgba(215,245,255,0.95)'; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.arc(0, cy, r, 0, 6.3); ctx.fill(); ctx.stroke();
       ctx.lineWidth = 2; ctx.strokeStyle = '#ffffff';
@@ -353,7 +336,7 @@ export class Renderer {
     const ctx = this.ctx, S = this.S;
     const col = owner === null ? '#ffd84a' : TEAM[owner].fill, dark = owner === null ? '#6b5200' : TEAM[owner].dark;
     ctx.save();
-    ctx.translate(g.x, g.y); ctx.scale(1, this.sq);
+    ctx.translate(g.x, g.y);
     ctx.beginPath(); ctx.arc(0, 0, S * 0.74, 0, 6.3);
     ctx.fillStyle = owner === null ? 'rgba(255,216,74,0.16)' : owner ? 'rgba(226,87,76,0.22)' : 'rgba(63,131,224,0.22)';
     ctx.fill();
@@ -361,7 +344,7 @@ export class Renderer {
     ctx.lineWidth = Math.max(4, S * 0.13); ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.stroke();
     ctx.lineWidth = Math.max(2.5, S * 0.08); ctx.strokeStyle = col; ctx.stroke();
     ctx.restore();
-    const px = g.x - S * 0.62, py = g.y - S * 0.34 * this.sq, h = S * 0.62;     // pennant
+    const px = g.x - S * 0.62, py = g.y - S * 0.34, h = S * 0.62;     // pennant
     ctx.lineCap = 'round';
     ctx.strokeStyle = '#2a1c0e'; ctx.lineWidth = Math.max(2.5, S * 0.07);
     ctx.beginPath(); ctx.moveTo(px, py + h * 0.25); ctx.lineTo(px, py - h); ctx.stroke();
@@ -433,7 +416,7 @@ export class Renderer {
     const P = this.wx, t = now / 1000;
     ctx.save();
     // Weather stays over the map: the whole painted image when there is one, otherwise the hexes themselves.
-    const bd = this.flat ? this.backdrop : null;
+    const bd = this.backdrop;
     ctx.beginPath();
     if (bd) {
       const k = (R3 * this.S) / bd.hexPx;
@@ -522,7 +505,7 @@ export class Renderer {
         let gx = 0, gy = 0, gn = 0;                                  // the building's middle: the average of its hexes
         for (const c of ch.cells) { const g = this.geo.get(key(c.q, c.r)); if (g) { gx += g.x; gy += g.y; gn++; } }
         if (!gn) break;
-        SM.push({ x: gx / gn + ch.dx * S, y: gy / gn + ch.dy * S * this.sq, age: 0, life: 3.2 + Math.random() * 2.6, ph: Math.random() * 6.3 });
+        SM.push({ x: gx / gn + ch.dx * S, y: gy / gn + ch.dy * S, age: 0, life: 3.2 + Math.random() * 2.6, ph: Math.random() * 6.3 });
       }
       ctx.globalCompositeOperation = 'source-over';
       ctx.fillStyle = this.wxBiome === 'snow' ? '#aeb4bf' : this.wxBiome === 'cave' ? '#9a9aa0' : '#ececec';
@@ -541,8 +524,8 @@ export class Renderer {
   }
 
   effects(ui, state) {
-    const ctx = this.ctx, S = this.S, now = performance.now(), lift = this.flat ? 0 : S * 0.45;
-    const P = (h) => { const c = this.centre(h); return c ? [c.x, c.y - lift] : null; };
+    const ctx = this.ctx, S = this.S, now = performance.now();
+    const P = (h) => { const c = this.centre(h); return c ? [c.x, c.y] : null; };
     ui.fx = ui.fx.filter((f) => now < f.t0 + f.dur);
     ctx.save();
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -740,14 +723,14 @@ export class Renderer {
   // Sight line from the selected ranged unit to the hovered enemy.
   // s: {from, to, status: 'ok'|'blocked'|'range', blocker: cell|null, d}
   sight(s) {
-    const ctx = this.ctx, S = this.S, lift = this.flat ? 0 : S * 0.4;
+    const ctx = this.ctx, S = this.S;
     const a = this.geo.get(key(s.from.q, s.from.r)), b = this.geo.get(key(s.to.q, s.to.r));
     const col = s.status === 'ok' ? '#7dff7a' : s.status === 'blocked' ? '#ff4d40' : '#d0d6dc';
     ctx.save();
     ctx.setLineDash([8, 6]);
     ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,0.6)';
     for (const pass of [0, 1]) {
-      ctx.beginPath(); ctx.moveTo(a.x, a.y - lift); ctx.lineTo(b.x, b.y - lift); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       ctx.lineWidth = 2.5; ctx.strokeStyle = col;
     }
     ctx.setLineDash([]);
@@ -760,7 +743,7 @@ export class Renderer {
       ctx.stroke();
     }
     const text = s.status === 'ok' ? `${s.d} hexes` : s.status === 'blocked' ? 'blocked' : `${s.d} hexes — out of range`;
-    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 - lift - 8;
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 - 8;
     ctx.font = `bold ${Math.max(12, Math.round(S * 0.36))}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText(text, mx, my);
@@ -769,8 +752,8 @@ export class Renderer {
   }
 
   cell(c, g) {
-    const ctx = this.ctx, p = g.pts, water = c.t === 'water';
-    if (this.flat && this.backdrop) {                // the image is the art; just tint and outline
+    const ctx = this.ctx;
+    if (this.backdrop) {                // the image is the art; just tint and outline
       this.topPath(g);
       if (c.t !== 'grass' || c.e) { ctx.globalAlpha = this.overlay; ctx.fillStyle = TOP[c.t][c.e]; ctx.fill(); ctx.globalAlpha = 1; }
       const ga = this.grid ?? 1;                     // grid strength, 0 (hidden) to 1
@@ -780,22 +763,10 @@ export class Renderer {
       }
       return;
     }
-    const side = (a, b, color) => {
-      ctx.beginPath();
-      ctx.moveTo(p[a][0], p[a][1]); ctx.lineTo(p[b][0], p[b][1]);
-      ctx.lineTo(p[b][0], p[b][1] + g.drop); ctx.lineTo(p[a][0], p[a][1] + g.drop);
-      ctx.closePath();
-      ctx.fillStyle = color; ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1; ctx.stroke();
-    };
-    if (!this.flat) {
-      side(0, 1, water ? '#2f6a9c' : '#6b5138');   // lower-right face (shaded)
-      side(1, 2, water ? '#3b7fb8' : '#8b6b49');   // lower-left face (lit)
-    }
     this.topPath(g);
     ctx.fillStyle = TOP[c.t][c.e];
     ctx.fill();
-    if (this.flat && c.e) { ctx.fillStyle = `rgba(255,236,170,${c.e * 0.13})`; ctx.fill(); }   // stronger height tint
+    if (c.e) { ctx.fillStyle = `rgba(255,236,170,${c.e * 0.13})`; ctx.fill(); }   // stronger height tint
     if ((this.grid ?? 1) > 0) { ctx.strokeStyle = 'rgba(0,0,0,' + 0.22 * (this.grid ?? 1) + ')'; ctx.lineWidth = 1; ctx.stroke(); }
   }
 
@@ -877,65 +848,40 @@ export class Renderer {
 
   unit(u, x, y, state) {
     const ctx = this.ctx, S = this.S, col = TEAM[u.team], cls = CLASSES[u.cls];
-    if (this.flat) {                                 // round token that stays inside its hex
-      const f = u.hp / maxHp(u), img = this.tokens?.[u.cls]?.[u.team], r = S * (img ? 0.56 : 0.46);
-      // A painted figure when there is one — but a one-hex figure too small to make out falls back to its coin.
-      const figure = (isBig(u) || S >= 20) && this.painted ? this.painted.get(u.cls, u.team, this.facing?.get(u.id)) : null;
-      if (!figure) {
-        ctx.fillStyle = 'rgba(0,0,0,0.35)';
-        ctx.beginPath(); ctx.ellipse(x + r * 0.1, y + r * 0.16, r, r, 0, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.save();
-      if (u.acted && u.team === state.turn && state.winner === null) ctx.filter = 'saturate(0.25) brightness(0.8)';
-      if (figure) {
-        const half = S * 0.56 * figure.scale;
-        ctx.drawImage(figure.canvas, x - half, y - half, half * 2, half * 2);
-      } else if (img) {
-        ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
-      } else {                                       // fallback until the token art has loaded
-        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = col.fill; ctx.fill();
-        ctx.lineWidth = 2.5; ctx.strokeStyle = col.dark; ctx.stroke();
-        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.font = `bold ${Math.round(S * 0.5)}px system-ui, sans-serif`;
-        ctx.fillText(cls.glyph, x, y - S * 0.04);
-        ctx.textBaseline = 'alphabetic';
-      }
-      ctx.restore();
-      const bw = S * 0.7, bh = Math.max(4, S * 0.12), bx = x - bw / 2, by = y - S * 0.78;
-      ctx.fillStyle = '#111'; ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
-      ctx.fillStyle = f > 0.5 ? '#5fd35f' : f > 0.25 ? '#f0c040' : '#f05040';
-      ctx.fillRect(bx, by, bw * f, bh);
-      if (u.hero) {                                  // a gold star beside a hero's health bar
-        const sx = bx - bh * 1.5, sy = by + bh / 2, R = bh * 1.25;
-        ctx.beginPath();
-        for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? R * 0.45 : R; ctx.lineTo(sx + Math.cos(a) * rr, sy + Math.sin(a) * rr); }
-        ctx.closePath(); ctx.fillStyle = '#ffd34a'; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = '#3a2808'; ctx.stroke();
-      }
-      return;
+    // A round token (or painted figure) that stays inside its hex.
+    const f = u.hp / maxHp(u), img = this.tokens?.[u.cls]?.[u.team], r = S * (img ? 0.56 : 0.46);
+    // A painted figure when there is one — but a one-hex figure too small to make out falls back to its coin.
+    const figure = (isBig(u) || S >= 20) && this.painted ? this.painted.get(u.cls, u.team, this.facing?.get(u.id)) : null;
+    if (!figure) {
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath(); ctx.ellipse(x + r * 0.1, y + r * 0.16, r, r, 0, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath(); ctx.ellipse(x, y, S * 0.4, S * 0.18, 0, 0, Math.PI * 2); ctx.fill();
-
     ctx.save();
     if (u.acted && u.team === state.turn && state.winner === null) ctx.filter = 'saturate(0.25) brightness(0.8)';
-    ctx.fillStyle = col.fill; ctx.strokeStyle = col.dark; ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x - S * 0.3, y - S * 0.06);
-    ctx.quadraticCurveTo(x, y + S * 0.1, x + S * 0.3, y - S * 0.06);
-    ctx.lineTo(x + S * 0.15, y - S * 0.62); ctx.lineTo(x - S * 0.15, y - S * 0.62);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.arc(x, y - S * 0.78, S * 0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = `bold ${Math.round(S * 0.36)}px system-ui, sans-serif`;
-    ctx.fillText(cls.glyph, x, y - S * 0.28);
-    ctx.textBaseline = 'alphabetic';
+    if (figure) {
+      const half = S * 0.56 * figure.scale;
+      ctx.drawImage(figure.canvas, x - half, y - half, half * 2, half * 2);
+    } else if (img) {
+      ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
+    } else {                                       // fallback until the token art has loaded
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = col.fill; ctx.fill();
+      ctx.lineWidth = 2.5; ctx.strokeStyle = col.dark; ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `bold ${Math.round(S * 0.5)}px system-ui, sans-serif`;
+      ctx.fillText(cls.glyph, x, y - S * 0.04);
+      ctx.textBaseline = 'alphabetic';
+    }
     ctx.restore();
-
-    const bw = S * 0.84, bh = Math.max(4, S * 0.13), bx = x - bw / 2, by = y - S * 1.2;
-    const f = u.hp / maxHp(u);
+    const bw = S * 0.7, bh = Math.max(4, S * 0.12), bx = x - bw / 2, by = y - S * 0.78;
     ctx.fillStyle = '#111'; ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
     ctx.fillStyle = f > 0.5 ? '#5fd35f' : f > 0.25 ? '#f0c040' : '#f05040';
     ctx.fillRect(bx, by, bw * f, bh);
+    if (u.hero) {                                  // a gold star beside a hero's health bar
+      const sx = bx - bh * 1.5, sy = by + bh / 2, R = bh * 1.25;
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? R * 0.45 : R; ctx.lineTo(sx + Math.cos(a) * rr, sy + Math.sin(a) * rr); }
+      ctx.closePath(); ctx.fillStyle = '#ffd34a'; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = '#3a2808'; ctx.stroke();
+    }
   }
 }
