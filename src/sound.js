@@ -18,6 +18,15 @@ export function unlock() {
 
 export function setEnabled(on) { enabled = on; }
 
+// For recording a game: a MediaStream carrying everything the game plays (null until sound is unlocked).
+let tapped = null;
+export function audioStream() {
+  if (!ac) return null;
+  if (!tapped) { tapped = ac.createMediaStreamDestination(); master.connect(tapped); }
+  return tapped.stream;
+}
+export const audioState = () => (ac ? ac.state : 'none');
+
 // A pitched tone sliding from f0 to f1.
 function tone({ type = 'sine', f0, f1 = f0, dur, vol = 0.4, delay = 0, attack = 0.006 }) {
   const t = ac.currentTime + delay, osc = ac.createOscillator(), g = ac.createGain();
