@@ -76,6 +76,11 @@ joining two fishing hamlets with a stream and a bridge in front of each, a headl
 and tidal flats to the south — shallows anyone can wade, slowly and in the open — with sandbars, sea stacks and a
 wreck. Armies of seven, including a cleric.
 
+`skyreach` is a siege up a mountainside in the snow (345 hexes): Blue's ten start in the valley in the south-west and
+climb four terraces — by the switchback road, or by the goat path past a yeti's den (a neutral troll) — to an abbey
+with a bell tower on the summit, which Red's six hold from above. Blue must hold the abbey court at the end of two
+of its turns within 20 rounds. Between two Plan samplers it came out 5–5 over ten games.
+
 `millbrook` is a village (337 hexes, meadow): houses along a road on both banks of a stream, a stone bridge at the
 centre and a ford above and below. Smoke rises from the chimneys when Weather is on.
 
