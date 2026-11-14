@@ -354,10 +354,12 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
       }
       // Hills: light from the north-west, bare earth and rock where it gets steep.
       const gx = S(fGx), gy = S(fGy), steep = Math.hypot(gx, gy);
-      t = sstep(1.5, 2.9, steep) * (1 - sstep(0.4, 0.6, ruins));
+      // (Under snow even a one-level rise shows its rock: white on white hides the shape of the land otherwise.)
+      t = (snow ? sstep(0.95, 2.0, steep) : sstep(1.5, 2.9, steep)) * (1 - sstep(0.4, 0.6, ruins));
+      const crag = t;
       if (t > 0) {
         const strata = 0.5 + 0.5 * Math.sin(S(fH) * 13 + n2 * 5);
-        let er = snow ? 128 - 36 * strata : 132 - 34 * strata, eg = snow ? 130 - 34 * strata : 112 - 28 * strata, eb = snow ? 138 - 30 * strata : 86 - 22 * strata;
+        let er = snow ? 158 - 56 * strata : 132 - 34 * strata, eg = snow ? 152 - 54 * strata : 112 - 28 * strata, eb = snow ? 148 - 50 * strata : 86 - 22 * strata;
         if (desert) { er = 188 - 58 * strata; eg = 102 - 40 * strata; eb = 66 - 26 * strata; }      // banded red rock
         if (cave) { er = 92 - 34 * strata; eg = 82 - 30 * strata; eb = 76 - 24 * strata; }
         r += (er - r) * t; g += (eg - g) * t; bl += (eb - bl) * t;
@@ -368,20 +370,26 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
         t = sstep(0.34, 0.6, road + (n2 - 0.5) * 0.55 + (hash(X, Y, seed + 41) - 0.5) * 0.16);
         if (t > 0) {
           const mud = sstep(0.56, 0.8, fbm(X / (s * 0.45), Y / (s * 0.45), seed + 42, 3)) * sstep(0.5, 0.9, road) * 0.8;
-          const e0 = snow ? [176, 186, 202] : alien ? [176, 178, 182] : desert ? [238, 216, 172] : cave ? [118, 108, 96] : [198, 170, 122];
-          const e1 = snow ? [136, 148, 168] : alien ? [112, 114, 122] : desert ? [196, 166, 120] : cave ? [70, 64, 58] : [126, 100, 66];
+          const e0 = snow ? [156, 164, 178] : alien ? [176, 178, 182] : desert ? [238, 216, 172] : cave ? [118, 108, 96] : [198, 170, 122];
+          const e1 = snow ? [112, 122, 140] : alien ? [112, 114, 122] : desert ? [196, 166, 120] : cave ? [70, 64, 58] : [126, 100, 66];
           const k = t * 0.94;
           r += (e0[0] + (e1[0] - e0[0]) * mud - r) * k; g += (e0[1] + (e1[1] - e0[1]) * mud - g) * k; bl += (e0[2] + (e1[2] - e0[2]) * mud - bl) * k;
         }
       }
       let shade = 1 + clamp((gx + gy) * 0.16, -0.3, 0.3);
+      if (snow) {
+        // Snowfields need more help: light that still picks out slopes running across it, every
+        // slope dimmed a little whichever way it faces, and the heights brighter than the valley.
+        shade = 1 + clamp(gx * 0.24 + gy * 0.13, -0.36, 0.3);
+        shade *= (1 - 0.2 * sstep(0.35, 1.5, steep) * (1 - crag)) * (0.9 + 0.035 * elev);
+      }
       // A fine contour line where the ground crosses each half level, so slopes read as terraces.
       if (steep > 0.55) {
         const hgt = S(fH) - 0.5, off = Math.abs(hgt - Math.round(hgt));
         shade *= 1 - 0.3 * (1 - sstep(0, (steep / s) * 2.2, off));
       }
       r *= shade; g *= shade; bl *= shade;
-      if (snow && shade < 1) bl += (1 - shade) * 46;       // snow shadows lean blue
+      if (snow && shade < 1) bl += (1 - shade) * 46 * (1 - crag);       // snow shadows lean blue (bare rock stays grey)
 
       // Water: muddy bank, foam at the edge, deeper blue toward the middle.
       if (water > 0.5) {
