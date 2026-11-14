@@ -330,6 +330,142 @@ function cleric(team, facing = FACING[team]) {
   });
 }
 
+// ---- Science fiction ----
+const ARMOUR = [[214, 220, 228], [150, 160, 174], [84, 94, 110]], CHITIN = [[92, 70, 104], [56, 40, 66], [30, 20, 38]], GLOW = 'rgb(140,255,236)';
+
+// Marine: heavy shoulder plates, a round helmet with a visor in the team's colour, a rifle held forward.
+function marine(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    shape(c, [[-0.08, -0.14], [-0.24, -0.12], [-0.24, 0.12], [-0.08, 0.14]], rgb(ARMOUR[2]), LW);                   // backpack
+    shape(c, ellipse(0.18, 0.2, 0.2, 0.065, -0.35), rgb(ARMOUR[1]), 0.024);                                         // arms to the rifle
+    shape(c, ellipse(0.2, -0.16, 0.2, 0.065, 0.3), rgb(ARMOUR[1]), 0.024);
+    shape(c, [[0.16, -0.03], [0.62, -0.045], [0.74, -0.02], [0.74, 0.02], [0.62, 0.045], [0.16, 0.05]], rgb([58, 62, 72]), LW);   // rifle
+    c.fillStyle = GLOW; c.fillRect(0.5, -0.016, 0.16, 0.032);
+    shape(c, ellipse(0, 0, 0.17, 0.33), rgb(ARMOUR[1]), LW);                                                        // torso
+    for (const s of [-1, 1]) shape(c, ellipse(0.0, 0.27 * s, 0.14, 0.11), rgb(T.base), 0.024);                      // shoulder plates
+    const g = c.createRadialGradient(0.0, -0.05, 0.01, 0.04, 0, 0.16);
+    g.addColorStop(0, 'rgb(244,247,250)'); g.addColorStop(1, rgb(ARMOUR[1]));
+    shape(c, ellipse(0.04, 0, 0.15, 0.15), g, LW);                                                                  // helmet
+    shape(c, [[0.1, -0.1], [0.19, -0.06], [0.19, 0.06], [0.1, 0.1]], rgb(T.light), 0.02);                           // visor
+  });
+}
+
+// Sniper: a cloaked figure behind a very long rifle on a bipod, a glint on the scope.
+function sniper(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    shape(c, [[0.04, -0.2], [-0.2, -0.24], [-0.42, -0.1], [-0.44, 0.1], [-0.2, 0.24], [0.04, 0.2]], rgb(mix(T.dark, [60, 60, 60], 0.4)), LW);   // cloak
+    shape(c, [[-0.06, -0.035], [0.78, -0.025], [0.86, 0], [0.78, 0.025], [-0.06, 0.035]], rgb([50, 54, 64]), LW);   // the rifle
+    shape(c, [[0.5, -0.02], [0.6, -0.16], [0.63, -0.15], [0.55, 0]], rgb([50, 54, 64]), 0.016);                      // bipod
+    shape(c, [[0.5, 0.02], [0.6, 0.16], [0.63, 0.15], [0.55, 0]], rgb([50, 54, 64]), 0.016);
+    shape(c, ellipse(0.24, 0, 0.09, 0.045), rgb(ARMOUR[2]), 0.02);                                                  // scope
+    c.fillStyle = GLOW; c.beginPath(); c.arc(0.32, 0, 0.022, 0, 6.3); c.fill();
+    shape(c, ellipse(-0.04, 0, 0.15, 0.27), rgb(ARMOUR[2]), LW);                                                    // shoulders
+    shape(c, ellipse(0.06, 0.03, 0.14, 0.13), rgb(T.base), LW);                                                     // hood
+    shape(c, ellipse(0.11, 0.03, 0.07, 0.07), rgb(ARMOUR[0]), 0.02);
+  });
+}
+
+// Drone: four rotors on crossed arms round a small body with a lens in the team's colour.
+function drone(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    c.strokeStyle = OUT; c.lineWidth = 0.075; c.beginPath(); c.moveTo(-0.27, -0.27); c.lineTo(0.27, 0.27); c.moveTo(-0.27, 0.27); c.lineTo(0.27, -0.27); c.stroke();
+    c.strokeStyle = rgb(ARMOUR[2]); c.lineWidth = 0.045; c.stroke();
+    for (const [x, y] of [[-0.29, -0.29], [0.29, 0.29], [-0.29, 0.29], [0.29, -0.29]]) {
+      shape(c, ellipse(x, y, 0.16, 0.16), 'rgba(210,225,240,0.5)', 0.022);                                          // rotor disc
+      c.strokeStyle = 'rgba(40,50,60,0.7)'; c.lineWidth = 0.02; c.beginPath(); c.moveTo(x - 0.13, y - 0.05); c.lineTo(x + 0.13, y + 0.05); c.stroke();
+      shape(c, ellipse(x, y, 0.04, 0.04), rgb(ARMOUR[2]), 0.016);
+    }
+    shape(c, [[-0.16, -0.12], [0.12, -0.12], [0.22, 0], [0.12, 0.12], [-0.16, 0.12]], rgb(ARMOUR[1]), LW);          // body
+    shape(c, ellipse(-0.02, 0, 0.085, 0.085), rgb(T.base), 0.022);
+    c.fillStyle = rgb(T.light); c.beginPath(); c.arc(-0.04, -0.02, 0.03, 0, 6.3); c.fill();
+    shape(c, [[0.16, -0.025], [0.32, -0.015], [0.32, 0.015], [0.16, 0.025]], rgb([50, 54, 64]), 0.016);              // gun
+  });
+}
+
+// Stalker: a low, six-legged alien — a ridged carapace, two scythe arms reaching forward, eyes like sparks.
+function stalker(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    c.strokeStyle = OUT; c.lineWidth = 0.05; c.beginPath();
+    for (const s of [-1, 1]) for (const [x, dx] of [[-0.14, -0.2], [0.0, 0.0], [0.12, 0.16]]) { c.moveTo(x, 0.1 * s); c.lineTo(x + dx * 0.5, 0.3 * s); c.lineTo(x + dx, 0.42 * s); }
+    c.stroke();
+    c.strokeStyle = rgb(CHITIN[0]); c.lineWidth = 0.026; c.stroke();
+    for (const s of [-1, 1]) shape(c, [[0.14, 0.1 * s], [0.4, 0.28 * s], [0.66, 0.1 * s], [0.42, 0.2 * s], [0.2, 0.05 * s]], rgb(BONE), 0.02);   // scythes
+    shape(c, [[-0.46, 0], [-0.3, -0.13], [0.06, -0.17], [0.22, -0.09], [0.22, 0.09], [0.06, 0.17], [-0.3, 0.13]], rgb(CHITIN[1]), LW);       // carapace
+    shape(c, [[-0.42, 0], [-0.2, -0.045], [0.14, -0.04], [0.14, 0.04], [-0.2, 0.045]], rgb(T.base), 0.02);          // the ridge down its back
+    c.strokeStyle = rgb(CHITIN[2], 0.8); c.lineWidth = 0.014;
+    for (const x of [-0.26, -0.14, -0.02]) { c.beginPath(); c.moveTo(x, -0.13); c.quadraticCurveTo(x + 0.05, 0, x, 0.13); c.stroke(); }
+    shape(c, [[0.16, -0.1], [0.36, -0.06], [0.42, 0], [0.36, 0.06], [0.16, 0.1]], rgb(CHITIN[0]), LW);              // head
+    for (const s of [-1, 1]) { c.fillStyle = 'rgb(255,220,80)'; c.beginPath(); c.arc(0.31, 0.04 * s, 0.02, 0, 6.3); c.fill(); }
+  });
+}
+
+// Spitter: a swollen, glowing sac behind a small head with a tube of a mouth.
+function spitter(team, facing = FACING[team]) {
+  return small(team, facing, (c, T) => {
+    c.strokeStyle = OUT; c.lineWidth = 0.05; c.beginPath();
+    for (const s of [-1, 1]) for (const x of [-0.1, 0.08]) { c.moveTo(x, 0.12 * s); c.lineTo(x + 0.06, 0.38 * s); }
+    c.stroke(); c.strokeStyle = rgb(CHITIN[0]); c.lineWidth = 0.026; c.stroke();
+    const sac = c.createRadialGradient(-0.24, -0.06, 0.02, -0.18, 0, 0.3);
+    sac.addColorStop(0, 'rgb(236,255,150)'); sac.addColorStop(0.6, 'rgb(150,214,60)'); sac.addColorStop(1, 'rgb(70,120,34)');
+    shape(c, ellipse(-0.18, 0, 0.28, 0.25), sac, LW);                                                               // acid sac
+    c.strokeStyle = 'rgba(40,70,20,0.6)'; c.lineWidth = 0.014;
+    for (const a of [0.6, 1.5, 2.4, 3.6, 4.6]) { c.beginPath(); c.moveTo(-0.18, 0); c.lineTo(-0.18 + Math.cos(a) * 0.26, Math.sin(a) * 0.23); c.stroke(); }
+    shape(c, ellipse(0.08, 0, 0.15, 0.17), rgb(CHITIN[1]), LW);                                                     // thorax
+    shape(c, [[0.02, -0.12], [0.14, -0.14], [0.14, 0.14], [0.02, 0.12]], rgb(T.base), 0.02);                        // band in the team's colour
+    shape(c, [[0.18, -0.08], [0.36, -0.05], [0.5, -0.03], [0.5, 0.03], [0.36, 0.05], [0.18, 0.08]], rgb(CHITIN[0]), LW);   // head and spout
+    c.fillStyle = 'rgb(190,255,90)'; c.beginPath(); c.arc(0.5, 0, 0.03, 0, 6.3); c.fill();
+    for (const s of [-1, 1]) { c.fillStyle = 'rgb(255,220,80)'; c.beginPath(); c.arc(0.3, 0.05 * s, 0.018, 0, 6.3); c.fill(); }
+  });
+}
+
+// Mech: a walker three hexes across — a boxy hull with armour in the team's colour, a cockpit canopy, a cannon on each arm.
+function mech(team, facing = FACING[team]) {
+  const T = TEAM[team], half = 1.55, U = 130;
+  const fig = layer(half, U), c = fig.ctx;
+  c.rotate(facing);
+  for (const s of [-1, 1]) {
+    shape(c, [[-0.2, 0.34 * s], [0.34, 0.34 * s], [0.42, 0.5 * s], [0.34, 0.66 * s], [-0.2, 0.66 * s]], rgb(ARMOUR[2]));       // feet
+    shape(c, [[-0.12, 0.62 * s], [0.5, 0.6 * s], [0.5, 0.84 * s], [-0.12, 0.86 * s]], rgb(ARMOUR[1]));                          // arm housing
+    shape(c, [[0.4, 0.66 * s], [1.16, 0.68 * s], [1.16, 0.78 * s], [0.4, 0.8 * s]], rgb([52, 56, 66]));                         // cannon
+    shape(c, [[1.1, 0.65 * s], [1.24, 0.65 * s], [1.24, 0.81 * s], [1.1, 0.81 * s]], rgb(ARMOUR[2]), 0.018);
+    c.fillStyle = GLOW; c.fillRect(0.6, (0.73 - 0.02) * s - (s < 0 ? 0.04 : 0), 0.3, 0.04);
+    shape(c, ellipse(0.08, 0.6 * s, 0.24, 0.17), rgb(T.base));                                                                   // shoulder armour
+  }
+  shape(c, [[-0.5, -0.46], [0.2, -0.5], [0.44, -0.3], [0.44, 0.3], [0.2, 0.5], [-0.5, 0.46], [-0.62, 0]], rgb(ARMOUR[1]));      // hull
+  shape(c, [[-0.5, -0.3], [-0.1, -0.34], [-0.1, 0.34], [-0.5, 0.3], [-0.58, 0]], rgb(T.base));                                   // engine deck
+  c.strokeStyle = rgb(T.dark, 0.8); c.lineWidth = 0.018;
+  for (const y of [-0.2, -0.07, 0.07, 0.2]) { c.beginPath(); c.moveTo(-0.48, y); c.lineTo(-0.14, y); c.stroke(); }
+  const can = c.createLinearGradient(0, -0.2, 0.4, 0.2);
+  can.addColorStop(0, 'rgb(200,246,255)'); can.addColorStop(1, 'rgb(50,110,150)');
+  shape(c, [[0.0, -0.2], [0.24, -0.22], [0.38, -0.1], [0.38, 0.1], [0.24, 0.22], [0.0, 0.2]], can);                              // canopy
+  c.strokeStyle = 'rgba(20,30,40,0.6)'; c.lineWidth = 0.014; c.beginPath(); c.moveTo(0.12, -0.21); c.lineTo(0.12, 0.21); c.stroke();
+  shape(c, [[-0.3, -0.56], [-0.2, -0.56], [-0.2, -0.44], [-0.3, -0.44]], rgb(ARMOUR[2]), 0.016);                                  // aerial mount
+  return { canvas: finish(fig, { drop: [0.1, 0.14], blur: 0.04, U }), scale: half / (0.56 * 2.15) };
+}
+
+// Brute: a hulking alien three hexes across — overlapping carapace plates, a horned head, two crushing claws.
+function brute(team, facing = FACING[team]) {
+  const T = TEAM[team], half = 1.55, U = 130;
+  const fig = layer(half, U), c = fig.ctx;
+  c.rotate(facing);
+  for (const s of [-1, 1]) {
+    c.strokeStyle = OUT; c.lineWidth = 0.1; c.beginPath();
+    for (const [x, dx] of [[-0.3, -0.34], [-0.05, -0.1]]) { c.moveTo(x, 0.4 * s); c.lineTo(x + dx * 0.5, 0.7 * s); c.lineTo(x + dx, 0.9 * s); }
+    c.stroke(); c.strokeStyle = rgb(CHITIN[0]); c.lineWidth = 0.06; c.stroke();
+    shape(c, ellipse(0.34, 0.56 * s, 0.34, 0.14, 0.25 * s), rgb(CHITIN[1]));                                                    // arm
+    shape(c, [[0.56, 0.5 * s], [0.9, 0.34 * s], [1.2, 0.5 * s], [0.96, 0.52 * s], [1.16, 0.74 * s], [0.84, 0.78 * s], [0.58, 0.7 * s]], rgb(BONE));   // claw
+  }
+  shape(c, [[-0.78, 0], [-0.56, -0.44], [-0.1, -0.56], [0.3, -0.42], [0.42, 0], [0.3, 0.42], [-0.1, 0.56], [-0.56, 0.44]], rgb(CHITIN[1]));     // body
+  for (const [x, w] of [[-0.5, 0.36], [-0.24, 0.46], [0.04, 0.42]]) shape(c, [[x - 0.14, -w], [x + 0.1, -w * 0.94], [x + 0.16, 0], [x + 0.1, w * 0.94], [x - 0.14, w]], rgb(CHITIN[0]), 0.018);   // plates
+  shape(c, [[-0.7, 0], [-0.4, -0.07], [0.16, -0.06], [0.16, 0.06], [-0.4, 0.07]], rgb(T.base));                                  // ridge in the team's colour
+  shape(c, [[0.26, -0.24], [0.56, -0.18], [0.7, 0], [0.56, 0.18], [0.26, 0.24]], rgb(CHITIN[0]));                                // head
+  for (const s of [-1, 1]) {
+    shape(c, [[0.5, 0.16 * s], [0.84, 0.3 * s], [0.6, 0.08 * s]], rgb(BONE), 0.018);                                             // horns
+    c.fillStyle = 'rgb(255,220,80)'; c.beginPath(); c.arc(0.58, 0.07 * s, 0.03, 0, 6.3); c.fill();
+  }
+  return { canvas: finish(fig, { drop: [0.1, 0.14], blur: 0.04, U }), scale: half / (0.56 * 2.0) };
+}
+
 // ---- Dragon: no ring at all — the creature itself, wings spread across its seven hexes ----
 function dragon(team, facing = FACING[team]) {
   const T = TEAM[team], half = 2.55, U = 120;
@@ -502,7 +638,7 @@ function worm(team, facing = FACING[team]) {
 // A figure is repainted for each facing rather than turned as a picture, because the light and the
 // shadow must stay put while the figure turns. Facings are rounded to steps of 15 degrees.
 export function paintedTokens() {
-  const painters = { soldier, archer, scout, wizard, spider, bat, troll, goblin, catapult, cleric, dragon, ogre, worm }, cache = new Map(), STEP = Math.PI / 12;
+  const painters = { soldier, archer, scout, wizard, spider, bat, troll, goblin, catapult, cleric, marine, sniper, drone, stalker, spitter, mech, brute, dragon, ogre, worm }, cache = new Map(), STEP = Math.PI / 12;
   return {
     has: (cls) => !!painters[cls],
     facing: (team) => FACING[team] ?? 0,

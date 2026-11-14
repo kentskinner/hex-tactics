@@ -390,7 +390,7 @@ export class Renderer {
       this.wxHouses = buildings(this.order).flatMap((b) => b.chim.map((ch) => ({ cells: b.cells, dx: ch.dx, dy: ch.dy })));   // one entry per chimney
       this.wxSmoke = [];
       this.wxCam = null;
-      this.wxKind = biome === 'snow' ? 'snow' : biome === 'desert' ? 'sand' : biome === 'cave' ? (this.wxLava.length ? 'embers' : 'motes') : 'clouds';
+      this.wxKind = biome === 'snow' ? 'snow' : biome === 'desert' || biome === 'alien' ? 'sand' : biome === 'cave' ? (this.wxLava.length ? 'embers' : 'motes') : 'clouds';
       const R = Math.random, area = w * h, many = (n, make) => Array.from({ length: Math.round(n) }, make);
       this.wx = this.wxKind === 'snow' ? many(Math.min(320, area / 6000), () => ({ x: R() * w, y: R() * h, z: 0.4 + R() * 0.6, ph: R() * 6.3 }))
         : this.wxKind === 'sand' ? many(Math.min(140, area / 12000), () => ({ x: R() * w, y: R() * h, z: 0.5 + R() * 0.5, len: 14 + R() * 30 }))

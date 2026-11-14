@@ -4,6 +4,7 @@
 //   paintBackdrop(map, { hexPx, seed, biome }) -> { canvas, hexPx, ox, oy }
 //   biome: 'meadow' (default), 'snow' (snowfields, frozen water, snow-laden pines) or
 //          'desert' (dunes, red sandstone cliffs, palms around the water),
+//          'alien' (a desert world: rust-red regolith, acid pools, purple fronds, blue crystals, steel prefabs),
 //          'cave' (rock is solid dark stone, so only the passages are lit; forest is glowing fungus)
 //
 // Stage 1 builds soft low-resolution fields (water, forest, ruins, rock, height) from the hexes,
@@ -111,7 +112,8 @@ function blur(f, w, h, radius, passes = 2) {
 }
 
 export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } = {}) {
-  const snow = biome === 'snow', desert = biome === 'desert', cave = biome === 'cave';
+  const alien = biome === 'alien';                       // painted like the desert, then recoloured
+  const snow = biome === 'snow', desert = biome === 'desert' || alien, cave = biome === 'cave';
   const SOLID = { t: 'rock', e: 0 };
   const s = hexPx / R3;                                 // hex "size" (centre to corner) in pixels
   const cells = Object.values(map.cells);
@@ -324,6 +326,7 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
         if (deep > 0.6) { const vein = sstep(0.62, 0.7, fbm(X / (s * 0.5), Y / (s * 0.9), seed + 50, 3)) * 14; r += vein; g += vein; bl += vein * 1.3; }
       } else if (desert) { r += (158 * m - r) * t; g += (106 * m - g) * t; bl += (76 * m - bl) * t; }
       else { r += (132 * m - r) * t; g += (127 * m - g) * t; bl += (116 * m - bl) * t; }
+      if (alien) { r *= 0.88; g *= 0.52; bl = bl * 0.5 + 6; }   // rust-red regolith
       // Flagstones.
       t = sstep(0.4, 0.6, ruins);
       if (t > 0) {
@@ -336,6 +339,7 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
         if (edge < 0.07) { sr = 92; sg = 88; sb = 76; }
         const moss = sstep(0.58, 0.72, n2) * 0.6;
         if (cave) { sr *= 0.74; sg *= 0.74; sb *= 0.78; }
+        else if (alien) { sr = 150 * tone; sg = 160 * tone; sb = 174 * tone; if (edge < 0.07) { sr = 40; sg = 46; sb = 56; } sr += (196 - sr) * moss * 0.5; sg += (112 - sg) * moss * 0.5; sb += (90 - sb) * moss * 0.5; }   // steel deck plates, dusted red
         else if (desert) { sr = sr * 1.12 + 14; sg = sg * 1.02; sb = sb * 0.84; sr += (222 - sr) * moss; sg += (190 - sg) * moss; sb += (136 - sb) * moss; }   // drifted sand
         else { sr += (96 - sr) * moss; sg += (124 - sg) * moss; sb += (64 - sb) * moss; }
         r += (sr - r) * t; g += (sg - g) * t; bl += (sb - bl) * t;
@@ -362,8 +366,8 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
         t = sstep(0.34, 0.6, road + (n2 - 0.5) * 0.55 + (hash(X, Y, seed + 41) - 0.5) * 0.16);
         if (t > 0) {
           const mud = sstep(0.56, 0.8, fbm(X / (s * 0.45), Y / (s * 0.45), seed + 42, 3)) * sstep(0.5, 0.9, road) * 0.8;
-          const e0 = snow ? [176, 186, 202] : desert ? [238, 216, 172] : cave ? [118, 108, 96] : [198, 170, 122];
-          const e1 = snow ? [136, 148, 168] : desert ? [196, 166, 120] : cave ? [70, 64, 58] : [126, 100, 66];
+          const e0 = snow ? [176, 186, 202] : alien ? [176, 178, 182] : desert ? [238, 216, 172] : cave ? [118, 108, 96] : [198, 170, 122];
+          const e1 = snow ? [136, 148, 168] : alien ? [112, 114, 122] : desert ? [196, 166, 120] : cave ? [70, 64, 58] : [126, 100, 66];
           const k = t * 0.94;
           r += (e0[0] + (e1[0] - e0[0]) * mud - r) * k; g += (e0[1] + (e1[1] - e0[1]) * mud - g) * k; bl += (e0[2] + (e1[2] - e0[2]) * mud - bl) * k;
         }
@@ -384,6 +388,7 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
         if (snow) { wr = 176 - 78 * depth; wg = 208 - 62 * depth; wb = 224 - 40 * depth; }     // frozen over
         if (desert) { wr = 96 - 70 * depth; wg = 204 - 74 * depth; wb = 190 - 40 * depth; }    // clear oasis water
         if (cave) { wr = 34 - 22 * depth; wg = 118 - 72 * depth; wb = 132 - 62 * depth; }      // a still, dark pool
+        if (alien) { wr = 168 - 110 * depth; wg = 236 - 70 * depth; wb = 70 - 40 * depth; }    // acid
         const rip = fbm(X / (s * 0.16), Y / (s * 0.7), seed + 20, 3);
         if (rip > 0.58) { const hl = (rip - 0.58) * 150; wr += hl; wg += hl; wb += hl; }
         const foam = (1 - sstep(0.5, 0.62, water)) * (0.35 + 0.65 * n2) * (cave ? 0.35 : 1);
@@ -393,6 +398,7 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
         t = sstep(0.26, 0.5, water) * 0.88;
         if (snow) { r += (196 - r) * t; g += (212 - g) * t; bl += (228 - bl) * t; }
         else if (cave) { r += (58 - r) * t; g += (66 - g) * t; bl += (70 - bl) * t; }
+        else if (alien) { r += (96 - r) * t; g += (104 - g) * t; bl += (52 - bl) * t; }         // stained, eaten bank
         else if (desert) { r += (150 - r) * t; g += (140 - g) * t; bl += (84 - bl) * t; }       // damp, greener bank
         else { r += (142 - r) * t; g += (126 - g) * t; bl += (90 - bl) * t; }
       }
@@ -603,7 +609,7 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
     }
   }
   spikes.sort((a, b) => a[1] - b[1]);
-  const stone = cave ? [[226, 214, 196], [128, 116, 104], [52, 46, 44]] : desert ? [[246, 214, 170], [186, 122, 80], [96, 54, 34]] : snow ? [[250, 252, 255], [150, 156, 166], [70, 74, 84]] : [[224, 222, 210], [140, 138, 128], [66, 64, 60]];
+  const stone = cave ? [[226, 214, 196], [128, 116, 104], [52, 46, 44]] : alien ? [[214, 252, 255], [70, 176, 216], [22, 64, 120]] : desert ? [[246, 214, 170], [186, 122, 80], [96, 54, 34]] : snow ? [[250, 252, 255], [150, 156, 166], [70, 74, 84]] : [[224, 222, 210], [140, 138, 128], [66, 64, 60]];
   const rgb = (c, k = 1) => `rgb(${c.map((v) => Math.round(Math.min(255, v * k)))})`;
   if (!cave) {
     // Above ground: standing stones. A few upright slabs per hex — taller than wide, with a blunt,
@@ -621,7 +627,7 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
       ctx.beginPath(); ctx.moveTo(x - w, y); ctx.lineTo(x - w * 0.9 + tilt, t1 + w * 0.3); ctx.quadraticCurveTo(x - w * 0.5 + tilt, t1 - w * 0.1, x + tilt, top);
       ctx.quadraticCurveTo(x + w * 0.7 + tilt, top, x + w + tilt, t2 + w * 0.25); ctx.lineTo(x + w, y); ctx.quadraticCurveTo(x, y + w * 0.3, x - w, y); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = 'rgba(20,18,14,0.8)'; ctx.lineWidth = 1.2; ctx.lineJoin = 'round'; ctx.stroke();
-      ctx.fillStyle = snow ? 'rgba(255,255,255,0.9)' : 'rgba(96,124,64,0.5)';      // snow cap, or moss
+      ctx.fillStyle = snow ? 'rgba(255,255,255,0.9)' : alien ? 'rgba(230,255,255,0.55)' : 'rgba(96,124,64,0.5)';      // snow cap, moss, or a crystal's bright tip
       ctx.beginPath(); ctx.moveTo(x - w * 0.9 + tilt, t1 + w * 0.3); ctx.quadraticCurveTo(x - w * 0.5 + tilt, t1 - w * 0.1, x + tilt, top); ctx.quadraticCurveTo(x + w * 0.7 + tilt, top, x + w + tilt, t2 + w * 0.25);
       ctx.quadraticCurveTo(x + tilt, top + w * 0.7, x - w * 0.9 + tilt, t1 + w * 0.3); ctx.fill();
       ctx.strokeStyle = 'rgba(20,18,14,0.3)'; ctx.lineWidth = 1;   // a crack or two
@@ -664,20 +670,26 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
     const yard = ctx.createRadialGradient(cx, cy, reach * 0.3, cx, cy, reach);
     yard.addColorStop(0, snow ? 'rgba(150,160,175,0.45)' : cave ? 'rgba(60,54,50,0.5)' : 'rgba(124,98,62,0.55)'); yard.addColorStop(1, 'rgba(124,98,62,0)');
     ctx.fillStyle = yard; ctx.beginPath(); ctx.arc(cx, cy, reach, 0, 6.3); ctx.fill();
-    const roof = snow ? ['#f6f9fd', '#c2ccdb', '#8b97aa'] : desert ? ['#e2c596', '#cfae7c', '#9c7d52'] : cave ? ['#8a857f', '#57534f', '#3a3734']
+    const roof = snow ? ['#f6f9fd', '#c2ccdb', '#8b97aa'] : alien ? ['#d3dbe2', '#93a0ad', '#56616e'] : desert ? ['#e2c596', '#cfae7c', '#9c7d52'] : cave ? ['#8a857f', '#57534f', '#3a3734']
       : b.thatch ? ['#d2b56a', '#9a7d3c', '#6d5626'] : b.kind === 'manor' ? ['#8f9aa6', '#5c6672', '#3c444e'] : ['#c06f45', '#853f27', '#5e2a1a'];
     ctx.save();
     ctx.translate(cx, cy); ctx.rotate(b.ang);
     const sh = b.kind === 'manor' ? 1.5 : 1;                                                           // taller buildings throw longer shadows
     const sx = sh * (s * 0.1 * Math.cos(-b.ang) - s * 0.14 * Math.sin(-b.ang)), sy = sh * (s * 0.1 * Math.sin(-b.ang) + s * 0.14 * Math.cos(-b.ang));
     ctx.fillStyle = 'rgba(0,0,0,0.42)'; ctx.fillRect(-w + sx, -d + sy, 2 * w, 2 * d);                 // shadow
-    ctx.fillStyle = snow ? '#6f5a48' : desert ? '#b8935f' : cave ? '#2c2a28' : '#e9dcc0';             // walls showing under the eaves
+    ctx.fillStyle = snow ? '#6f5a48' : alien ? '#2f3944' : desert ? '#b8935f' : cave ? '#2c2a28' : '#e9dcc0';             // walls showing under the eaves
     ctx.fillRect(-w - s * 0.035, -d - s * 0.035, 2 * w + s * 0.07, 2 * d + s * 0.07);
     const P = (pts, fill) => { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); };
     if (desert) {                                                                                     // flat roof with a parapet
       ctx.fillStyle = roof[1]; ctx.fillRect(-w, -d, 2 * w, 2 * d);
       ctx.fillStyle = roof[0]; ctx.fillRect(-w + s * 0.07, -d + s * 0.07, 2 * w - s * 0.14, 2 * d - s * 0.14);
       ctx.fillStyle = 'rgba(60,40,20,0.5)'; ctx.fillRect(w * 0.25, -d * 0.45, s * 0.14, s * 0.14);      // roof hatch
+      if (alien) {                                                                                    // panel seams and a row of running lights
+        ctx.strokeStyle = 'rgba(30,40,52,0.45)'; ctx.lineWidth = 1;
+        for (let x = -w + s * 0.26; x < w - s * 0.1; x += s * 0.26) { ctx.beginPath(); ctx.moveTo(x, -d + s * 0.07); ctx.lineTo(x, d - s * 0.07); ctx.stroke(); }
+        ctx.fillStyle = '#7ff0ff';
+        for (let x = -w + s * 0.14; x < w - s * 0.05; x += s * 0.2) ctx.fillRect(x, d - s * 0.055, s * 0.06, s * 0.03);
+      }
     } else if (b.kind === 'manor') {                                                                  // hipped: four slopes meeting at a short ridge
       const rx = Math.max(0, w - d);
       P([[-w, -d], [w, -d], [rx, 0], [-rx, 0]], roof[0]);
@@ -712,7 +724,7 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
     for (const ch of b.chim) {
       const cs = s * (b.kind === 'house' ? 0.075 : 0.09), chx = ch.t * w, chy = ch.off * d;
       ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(chx - cs + sx * 0.5, chy - cs + sy * 0.5, 2 * cs, 2 * cs);
-      ctx.fillStyle = desert ? '#8f6e44' : '#6b5a52'; ctx.fillRect(chx - cs, chy - cs, 2 * cs, 2 * cs);
+      ctx.fillStyle = alien ? '#3a4654' : desert ? '#8f6e44' : '#6b5a52'; ctx.fillRect(chx - cs, chy - cs, 2 * cs, 2 * cs);
       ctx.fillStyle = '#1c1512'; ctx.fillRect(chx - cs * 0.5, chy - cs * 0.5, cs, cs);
       ctx.strokeStyle = 'rgba(20,14,10,0.9)'; ctx.lineWidth = 1; ctx.strokeRect(chx - cs, chy - cs, 2 * cs, 2 * cs);
     }
@@ -775,7 +787,9 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
       // Seen from above: stacked, slightly rotated tiers of pointed boughs.
       const points = desert ? 7 + Math.floor(rnd() * 3) : 9 + Math.floor(rnd() * 4), spin = rnd() * 6.28;
       const inner = desert ? 0.2 : 0.6;                 // palms: long thin fronds
-      const tiers = desert
+      const tiers = alien
+        ? [[1.12, '#34174f', '#8448b8'], [0.78, '#46206a', '#ab66dc'], [0.46, '#1f6f78', '#63d8d0'], [0.13, '#123a40', '#c4fff6']]
+        : desert
         ? [[1.12, '#24481c', '#4c8a2e'], [0.78, '#2f5f22', '#6aa838'], [0.46, '#4a7d2a', '#93c64a'], [0.13, '#5a3d1e', '#9a7242']]
         : snow
         ? [[1, '#12301f', '#1f4d33'], [0.72, '#1a472d', '#3b6f55'], [0.46, '#b9cdd4', '#f1f6f9'], [0.22, '#dfe9ee', '#ffffff']]

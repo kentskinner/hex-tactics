@@ -309,7 +309,8 @@ function infoText(me) {
       `ATK ${k.atk + (u.hero ? E.HERO_ATK : 0)} · move ${k.move} · range ${k.rmin === k.rmax ? k.rmin : k.rmin + '–' + k.rmax + (k.arc ? '' : ' (+1 from high ground)')}${state.fog && (state.sight === 'range' || state.map.ceiling) ? ` · sight ${k.sight}` : ''}`);
     if (k.size === 'large') lines.push('Large: occupies 3 hexes, cannot fit through single-hex gaps');
     if (k.arc) lines.push('Lobs its shot over walls and hills: needs no sight line, ignores cover', 'Cannot shoot after moving, and never strikes back');
-    else if (k.pierce) lines.push('Lightning ignores cover');
+    else if (k.pierce) lines.push(u.cls === 'wizard' ? 'Lightning ignores cover' : 'Acid ignores cover');
+    if (k.setup && !k.arc) lines.push('Cannot shoot after moving, and never strikes back');
     if (k.skirmish && state.zoc) lines.push('Skirmisher: slips past enemy zones of control');
     if (k.regen) lines.push(`Regenerates ${k.regen} HP at the start of each of its turns`);
     if (u.team === E.WILD) lines.push(`Neutral: attacks anyone who comes within ${E.WILD_RANGE} hexes of its lair`);
@@ -372,10 +373,12 @@ async function windUp(g, who, target, seen) {
   if (!seen) return '#ffe9a8';
   const sp = speed(), from = spot(who), at = spot(target);
   const fx = (e) => view.fx.push({ t0: performance.now(), ...e });
-  if (who.cls === 'wizard') {
-    fx({ type: 'charge', at: from, dur: 240 / sp });
-    play('charge');
-    await sleep(240 / sp);
+  if (who.cls === 'wizard' || E.CLASSES[who.cls].beam) {
+    if (who.cls === 'wizard') {
+      fx({ type: 'charge', at: from, dur: 240 / sp });
+      play('charge');
+      await sleep(240 / sp);
+    }
     fx({ type: 'bolt', from, to: at, dur: 380 / sp });
     play('zap');
     await sleep(110 / sp);
@@ -725,7 +728,7 @@ async function openSavedMap(name) {
   if (data.siege) $('mode').value = 'siege'; else if (data.raid) $('mode').value = 'raid'; else if ($('mode').value === 'siege' || $('mode').value === 'raid') $('mode').value = 'eliminate';
   // Scenarios (siege, raid) are balanced without dragons: switch them off there, and put the
   // setting back on leaving. It can still be turned on by hand.
-  const scenario = !!(data.siege || data.raid);
+  const scenario = !!(data.siege || data.raid || data.scenario);
   if (scenario && dragonsBefore === null) { dragonsBefore = $('dragons').value; $('dragons').value = 'none'; }
   else if (!scenario && dragonsBefore !== null) { $('dragons').value = dragonsBefore; dragonsBefore = null; }
   setOverlay(data.backdrop?.overlay ?? 0.4);

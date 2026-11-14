@@ -60,6 +60,14 @@ export const CLASSES = {
   //      from high ground (no extra range or damage). setup: can't shoot in a turn in which it has moved, and never strikes back.
   catapult: { name: 'Catapult', glyph: 'K', hp: 10, atk: 4, move: 2, rmin: 3, rmax: 7, sight: 4, arc: true, setup: true, pierce: true, value: 1.5 },
   cleric:  { name: 'Cleric',  glyph: 'H', hp: 12, atk: 4, move: 3, rmin: 1, rmax: 1, sight: 5, spells: ['heal'] },
+  // Science fiction. beam: shoots energy bolts (looks only). Marines fight at any distance up to 3.
+  marine:  { name: 'Marine',  glyph: 'R', hp: 10, atk: 4, move: 3, rmin: 1, rmax: 3, sight: 5, beam: true },
+  sniper:  { name: 'Sniper',  glyph: 'N', hp: 7,  atk: 6, move: 3, rmin: 3, rmax: 6, sight: 7, setup: true, beam: true },
+  drone:   { name: 'Drone',   glyph: 'Q', hp: 6,  atk: 3, move: 6, rmin: 1, rmax: 2, sight: 6, fly: true, beam: true, value: 0.8 },
+  mech:    { name: 'Mech',    glyph: 'E', hp: 26, atk: 6, move: 3, rmin: 1, rmax: 2, sight: 5, size: 'large', beam: true, value: 1.5 },
+  stalker: { name: 'Stalker', glyph: 'L', hp: 9,  atk: 5, move: 5, rmin: 1, rmax: 1, sight: 5, climb: true, value: 0.8 },
+  spitter: { name: 'Spitter', glyph: 'P', hp: 8,  atk: 4, move: 3, rmin: 2, rmax: 4, sight: 5, pierce: true },       // acid eats through cover
+  brute:   { name: 'Brute',   glyph: 'U', hp: 28, atk: 7, move: 3, rmin: 1, rmax: 1, sight: 4, size: 'large', regen: 1, value: 1.5 },
   wizard:  { name: 'Wizard',  glyph: 'W', hp: 8,  atk: 4, move: 3, rmin: 1, rmax: 3, sight: 5, pierce: true, spells: ['fireball', 'frost', 'blink'] },   // lightning ignores cover
 };
 

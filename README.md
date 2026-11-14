@@ -67,6 +67,10 @@ west cave and must clear out a goblin colony within 24 rounds: fourteen goblins,
 them from the great hall. A neutral giant spider lairs in a back passage the goblins shun. Tuned to about 2:1 for the
 heroes between two Plan samplers; Greedy heroes lose.
 
+`kepler` is science fiction (345 hexes, alien world): eight humans — five marines, a sniper, a drone and a mech — hold a
+prefab outpost against nine aliens: six stalkers, two spitters and a brute. Different armies on an asymmetric map;
+between two Plan samplers the humans won 8 of 12, and one unit either way swings it hard.
+
 `millbrook` is a village (337 hexes, meadow): houses along a road on both banks of a stream, a stone bridge at the
 centre and a ford above and below. Smoke rises from the chimneys when Weather is on.
 
@@ -121,6 +125,10 @@ The map file format is documented at the top of the "Map files" section in `src/
 - **Units** — Soldier (14 hp, 5 atk, move 3), Archer (9 hp, 4 atk, move 3, range 2–4), Scout (10 hp, 4 atk, move 5),
   Wizard (8 hp, 4 atk, move 3, range 1–3, lightning ignores cover), Ogre (24 hp, 6 atk, move 3, three hexes).
   Each side fields one of each. Scouts are skirmishers: enemy zones of control don't stop them.
+  Science-fiction units: Marine (10 hp, 4 atk, move 3, range 1–3), Sniper (7 hp, 6 atk, move 3, range 3–6, can't shoot
+  after moving), Drone (6 hp, 3 atk, move 6, range 1–2, flies), Mech (26 hp, 6 atk, move 3, range 1–2, three hexes),
+  Stalker (9 hp, 5 atk, move 5, climbs), Spitter (8 hp, 4 atk, move 3, range 2–4, acid ignores cover), Brute (28 hp,
+  7 atk, move 3, three hexes, regenerates 1).
   Scenario units: Goblin (8 hp, 4 atk, move 4), Cleric (12 hp, 4 atk, move 3; Heal restores 5 hp to a friend within
   2 hexes or to itself, cooldown 3), Catapult (10 hp, 4 atk, move 2, range 3–7: lobs its shot, so it needs no sight
   line and ignores cover and height, but it can't shoot in a turn in which it has moved and never strikes back).
