@@ -295,7 +295,7 @@ function infoText(me) {
   const t = E.TERRAIN[c.t];
   const point = (view.objectives || []).find((o) => o.q === hover.q && o.r === hover.r);
   const tname = t.narrow && !state.map.ceiling ? 'Standing stones' : t.name;     // above ground they are menhirs
-  const lines = [`${tname} · height ${c.e} · ` +
+  const lines = [`${tname} · height ${c.e}${c.e ? ` (+${c.e * 10} ft)` : ''} · ` +
     (t.cost === Infinity ? (c.t === 'lava' ? 'impassable on foot; flyers cross; does not block sight' : 'impassable, blocks sight') : `move cost ${t.cost} · cover ${t.cover}`) + (t.narrow ? ' · too tight for big creatures' : '') + (t.tall && t.cost !== Infinity ? ' · blocks sight through it' : '')];
   if (point) {
     lines.push(`Control point — ${point.owner === null ? 'unclaimed' : 'held by ' + TEAM[point.owner]}`

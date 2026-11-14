@@ -98,6 +98,41 @@ export class Renderer {
       const p = this.pos(c.q, c.r);
       this.geo.set(key(c.q, c.r), { ...p, pts: this.corners(p) });
     }
+    this.heightLabels = this.terraces();
+  }
+
+  // Where to write the height of raised ground: not on every hex, but once per terrace (a patch of
+  // touching hexes at the same height), like a note on a map — and again every so often across a
+  // big one. Labels go on open ground, as near the middle of the patch as there is any.
+  terraces() {
+    const cells = this.map.cells, seen = new Set(), out = [];
+    const open = (c) => c.t === 'grass' || c.t === 'road' || c.t === 'ruins';
+    for (const start of this.order) {
+      const k0 = key(start.q, start.r);
+      if (start.e === 0 || seen.has(k0)) continue;
+      const patch = [], todo = [start];
+      seen.add(k0);
+      while (todo.length) {
+        const c = todo.pop();
+        patch.push(c);
+        for (const [dq, dr] of DIRS) {
+          const n = cells[key(c.q + dq, c.r + dr)];
+          if (n && n.e === start.e && !seen.has(key(n.q, n.r))) { seen.add(key(n.q, n.r)); todo.push(n); }
+        }
+      }
+      const cands = patch.some(open) ? patch.filter(open) : patch;
+      const mid = { q: patch.reduce((t, c) => t + c.q, 0) / patch.length, r: patch.reduce((t, c) => t + c.r, 0) / patch.length };
+      const far = (a, b) => (Math.abs(a.q - b.q) + Math.abs(a.r - b.r) + Math.abs(a.q + a.r - b.q - b.r)) / 2;
+      const picked = [cands.reduce((best, c) => (far(c, mid) < far(best, mid) ? c : best))];
+      for (let n = Math.round(patch.length / 30); picked.length < n;) {         // more for a big terrace, spread out
+        let best = null, bestD = 5;
+        for (const c of cands) { const d = Math.min(...picked.map((p) => far(c, p))); if (d > bestD) { bestD = d; best = c; } }
+        if (!best) break;
+        picked.push(best);
+      }
+      for (const c of picked) out.push({ q: c.q, r: c.r, e: start.e });
+    }
+    return out;
   }
 
   corners(p) {
@@ -695,8 +730,8 @@ export class Renderer {
     ctx.restore();
   }
 
-  // Top-down only: mark the high side of every height change (thin = slope, thick = cliff)
-  // and print the height of raised hexes.
+  // Mark the high side of every height change (thin = slope, thick = cliff) and note the height of
+  // raised ground: once per terrace ("+10 ft" per level), or on every hex while editing.
   contours() {
     const ctx = this.ctx, S = this.S;
     ctx.lineCap = 'round';
@@ -715,8 +750,18 @@ export class Renderer {
         ctx.lineWidth = cliff ? Math.max(4, S * 0.16) : 2.5;
         ctx.stroke();
       }
-      ctx.fillStyle = 'rgba(0,0,0,0.65)';
-      ctx.fillText(c.e, g.x, g.y + S * 0.82);
+      if (this.pad) { ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillText(c.e, g.x, g.y + S * 0.82); }      // editing: every hex shows its level
+    }
+    if (!this.pad) {
+      ctx.font = `italic bold ${Math.max(11, Math.round(S * 0.4))}px Georgia, 'Times New Roman', serif`;
+      ctx.lineJoin = 'round';
+      for (const l of this.heightLabels || []) {
+        const g = this.geo.get(key(l.q, l.r));
+        if (!g) continue;
+        const text = `+${l.e * 10} ft`, y = g.y + S * 0.8;
+        ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,252,240,0.8)'; ctx.strokeText(text, g.x, y);
+        ctx.fillStyle = 'rgba(32,22,12,0.95)'; ctx.fillText(text, g.x, y);
+      }
     }
     ctx.lineCap = 'butt';
   }

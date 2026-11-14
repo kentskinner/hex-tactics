@@ -6,7 +6,8 @@ No dependencies beyond Node.
     node server.js                              # play at http://localhost:5173
     node arena.js sampler greedy --games 20     # headless AI-vs-AI
 
-The view is top-down (height shown as a number, shading and contour/cliff edges). Hover an enemy to see where it can strike next turn; with an
+The view is top-down. Raised ground is shown by shading, optional contour/cliff edges, and a note on each terrace
+("+10 ft" per level of height); while editing, every hex shows its level as a number. Hover an enemy to see where it can strike next turn; with an
 archer selected, hovering an enemy draws the sight line and marks what blocks it.
 
 **Display** — "Grid lines" fades the hex grid; "Height edges" switches off the dark slope and cliff lines of the
