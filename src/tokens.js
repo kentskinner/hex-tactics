@@ -282,7 +282,10 @@ function goblin(team, facing = FACING[team]) {
 // Catapult: a timber frame on four wheels, the throwing arm drawn back with a stone in its cup,
 // a pennant in the team's colour.
 function catapult(team, facing = FACING[team]) {
-  return small(team, facing, (c, T) => {
+  // A siege engine, not a man: no ring, and big enough to fill its hex. Shields in the team's colour hang on its sides.
+  const T = TEAM[team], half = 1.1, U = 150, fig = layer(half, U), c = fig.ctx;
+  c.rotate(facing); c.scale(1.75, 1.75);
+  {
     const dark = mix(WOOD, [40, 24, 10], 0.45);
     for (const x of [-0.22, 0.2]) for (const s of [-1, 1]) shape(c, [[x - 0.09, 0.27 * s], [x + 0.09, 0.27 * s], [x + 0.09, 0.36 * s], [x - 0.09, 0.36 * s]], rgb(dark), 0.024);   // wheels
     for (const s of [-1, 1]) shape(c, [[-0.36, 0.17 * s], [0.34, 0.17 * s], [0.34, 0.27 * s], [-0.36, 0.27 * s]], rgb(WOOD), LW);                       // side beams
@@ -297,9 +300,11 @@ function catapult(team, facing = FACING[team]) {
     const g = c.createRadialGradient(-0.49, -0.03, 0.01, -0.46, 0, 0.09);
     g.addColorStop(0, 'rgb(214,214,206)'); g.addColorStop(1, 'rgb(120,120,116)');
     shape(c, ellipse(-0.46, 0, 0.085, 0.085), g, 0.022);                                                                                              // stone
+    for (const s of [-1, 1]) for (const x of [-0.12, 0.08]) shape(c, ellipse(x, 0.22 * s, 0.075, 0.06), rgb(T.base), 0.018);                       // shields along the sides
     shape(c, [[0.3, -0.2], [0.56, -0.13], [0.3, -0.06]], rgb(T.base), 0.022);                                                                         // pennant
     shape(c, [[0.28, -0.22], [0.31, -0.22], [0.31, 0.0], [0.28, 0.0]], rgb(dark), 0.014);
-  });
+  }
+  return { canvas: finish(fig, { drop: [0.07, 0.1], blur: 0.03, U }), scale: half / 0.56 };
 }
 
 // Cleric: pale robes with a tabard in the team's colour, a shaven head, a flanged mace, and a
