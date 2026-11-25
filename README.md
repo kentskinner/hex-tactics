@@ -90,6 +90,13 @@ nesting ground in the east, and between them mesas, acid lakes, crystal fields a
 The ground is a half-turn copy of itself; the armies are not: twelve humans (six marines, two snipers, two drones,
 two mechs) against sixteen aliens (eleven stalkers, three spitters, two brutes). Between two Plan samplers the humans won 6 of 8; one more stalker and the aliens won 7 of 8.
 
+`blackvault` is a dungeon (345 hexes, painted in the dungeon style: paved wall to wall, torches along the walls). Four
+heroes — soldier, cleric, wizard, archer — come in by the west door and must break into the vault at the far end and
+hold it at the end of two of their turns within 20 rounds. The garrison of fourteen (ten goblins, two archers, an ogre
+and a wizard in the vault) defends. Beyond the guard room the ways on are a great hall cut in two by a lava channel
+with two bridges, a barracks with a one-hex back passage round to the vault's rear door, and a flooded crypt with a
+neutral troll in it. Between two Plan samplers the heroes won 4 of 10.
+
 `millbrook` is a village (337 hexes, meadow): houses along a road on both banks of a stream, a stone bridge at the
 centre and a ford above and below. Smoke rises from the chimneys when Weather is on.
 

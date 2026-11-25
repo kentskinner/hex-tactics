@@ -4,6 +4,7 @@
 //   paintBackdrop(map, { hexPx, seed, biome }) -> { canvas, hexPx, ox, oy }
 //   biome: 'meadow' (default), 'snow' (snowfields, frozen water, snow-laden pines) or
 //          'desert' (dunes, red sandstone cliffs, palms around the water),
+//          'dungeon' (a cave that was built: paved wall to wall, torches burning along the walls),
 //          'alien' (a desert world: rust-red regolith, acid pools, purple fronds, blue crystals, steel prefabs),
 //          'cave' (rock is solid dark stone, so only the passages are lit; forest is glowing fungus)
 //
@@ -115,7 +116,8 @@ function blur(f, w, h, radius, passes = 2) {
 
 export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } = {}) {
   const alien = biome === 'alien';                       // painted like the desert, then recoloured
-  const snow = biome === 'snow', desert = biome === 'desert' || alien, cave = biome === 'cave';
+  const dungeon = biome === 'dungeon';                   // painted like a cave, but paved and torch-lit
+  const snow = biome === 'snow', desert = biome === 'desert' || alien, cave = biome === 'cave' || dungeon;
   const SOLID = { t: 'rock', e: 0 };
   const s = hexPx / R3;                                 // hex "size" (centre to corner) in pixels
   const cells = Object.values(map.cells);
@@ -331,6 +333,7 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
       if (alien) { r *= 0.88; g *= 0.52; bl = bl * 0.5 + 6; }   // rust-red regolith
       // Flagstones.
       t = sstep(0.4, 0.6, ruins);
+      if (dungeon) t = Math.max(t, 1 - sstep(0.16, 0.4, rock));       // a built place: paved wall to wall
       if (t > 0) {
         const u = (X * cos + Y * sin) / tile, iu = Math.floor(u);
         const v = (Y * cos - X * sin) / (tile * 0.7) + (iu & 1) * 0.5, iv = Math.floor(v);
@@ -668,6 +671,35 @@ export function paintBackdrop(map, { hexPx = 140, seed = 7, biome = 'meadow' } =
     }
   }
 
+  }
+
+  // Torches along a dungeon's walls: a pool of warm light on the floor and a flame at the foot of the wall.
+  if (dungeon) {
+    const N6 = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const lit = [];
+    for (const c of sorted) {
+      if (c.t === 'rock' || c.t === 'water' || c.t === 'lava') continue;
+      const walls = N6.filter(([dq, dr]) => { const n = map.cells[key(c.q + dq, c.r + dr)]; return !n || n.t === 'rock'; });
+      if (!walls.length || hash(c.q * 7 + 1, c.r * 11 + 3, seed + 71) > 0.2) continue;
+      if (lit.some((p) => Math.abs(p.q - c.q) + Math.abs(p.r - c.r) + Math.abs(p.q + p.r - c.q - c.r) <= 4)) continue;     // not two side by side
+      lit.push(c);
+      const [dq, dr] = walls[Math.floor(hash(c.q, c.r, seed + 72) * walls.length)], [x0, y0] = centre(c), [x1, y1] = centre({ q: c.q + dq, r: c.r + dr });
+      const tx = x0 + (x1 - x0) * 0.46, ty = y0 + (y1 - y0) * 0.46;
+      const pool = ctx.createRadialGradient(tx, ty, 0, tx, ty, s * 2.3);
+      pool.addColorStop(0, 'rgba(255,170,70,0.5)'); pool.addColorStop(0.35, 'rgba(255,130,40,0.2)'); pool.addColorStop(1, 'rgba(255,110,30,0)');
+      ctx.fillStyle = pool; ctx.beginPath(); ctx.arc(tx, ty, s * 2.3, 0, 6.3); ctx.fill();
+      c.torch = [tx, ty];
+    }
+    ctx.restore();
+    for (const c of lit) {
+      const [tx, ty] = c.torch; delete c.torch;
+      ctx.fillStyle = '#2a1c12'; ctx.beginPath(); ctx.arc(tx, ty, s * 0.07, 0, 6.3); ctx.fill();
+      const flame = ctx.createRadialGradient(tx, ty - s * 0.02, 0, tx, ty, s * 0.1);
+      flame.addColorStop(0, '#fff6c8'); flame.addColorStop(0.5, '#ffb040'); flame.addColorStop(1, 'rgba(255,90,20,0)');
+      ctx.fillStyle = flame; ctx.beginPath(); ctx.arc(tx, ty, s * 0.1, 0, 6.3); ctx.fill();
+    }
   }
 
   // Buildings, seen from above: a pitched roof (one slope lit, one in shade), a ridge, chimneys,

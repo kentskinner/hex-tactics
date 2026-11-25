@@ -31,7 +31,7 @@ export function generateMap(seed = 1, radius = 6) {
 //     raid: { defender: 1, rounds: 24 },   an asymmetric scenario: see createGame's 'raid' mode (optional).
 //                                    Spawns may be marked hero: true (tougher units: see HERO_HP in the engine).
 //     scenario: true,                a map with its own cast: the sidebar's Dragons setting is switched off for it (optional)
-//     biome: 'meadow' | 'snow' | 'desert' | 'cave' | 'alien',   the art style it was painted in; picks the weather (optional)
+//     biome: 'meadow' | 'snow' | 'desert' | 'cave' | 'dungeon' | 'alien',   the art style it was painted in; picks the weather (optional)
 //     ceiling: true,                 a cave: flyers can't cross rock (optional)
 //     backdrop: { image: 'file.png', hexPx, ox, oy } | null }
 // Boards can be any shape: a hex exists if it is in `cells`.
