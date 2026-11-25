@@ -206,6 +206,21 @@ sampler use the two damage spells but never Blink.
 
 Attacks and spells are animated and have synthesised sound (`src/sound.js`, "Sound" in the sidebar).
 
+### Watching an AI think
+
+"AI thinking" in the sidebar draws what one side's AI last reported, and sums it up under Info.
+
+- **Plan sampler** — its chosen turn as gold arrows (attacks red, spells orange, a ring for overwatch), the two best
+  different turns it rejected as dashed lines, and the scores: chosen, plain greedy, and the worst it tried. Under fog
+  it also shows what it believes: a dashed ring and "A?" where it last saw each hidden enemy, purple over the hexes it
+  thinks they could be on now (stronger = more likely), and a dot for each position it guessed when building worlds.
+- **Greedy** — the best few options for its next step with their scores, and blue rings on the places it is heading
+  for when no enemy is in view.
+
+Pair it with "Fog view: Everything" to compare the belief with the truth. For your own AI, return whatever you like from
+an optional `explain()` method next to `chooseAction`; `kind: 'sampler'` and `kind: 'greedy'` are the shapes the page
+knows how to draw (see `thought()` in `src/render.js`).
+
 ### Fog of war (optional)
 
 Tick "Fog of war" in the sidebar, or pass `--fog` to the arena.

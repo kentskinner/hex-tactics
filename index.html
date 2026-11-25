@@ -38,6 +38,7 @@
   .brushes button { padding: 3px 8px; font-size: 12px; }
   #spells button { padding: 4px 2px; font-size: 12px; }
   .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+  #thought { background: #1b2530; border-radius: 6px; padding: 8px; white-space: pre-line; font-size: 12px; color: #c9d6e2; }
   #info { min-height: 76px; background: #1b2530; border-radius: 6px; padding: 8px; white-space: pre-line; }
   #log { flex: 1; min-height: 100px; overflow-y: auto; background: #1b2530; border-radius: 6px; padding: 8px; font-size: 12px; color: #a9b8c7; }
   #log div { margin-bottom: 2px; }
@@ -79,6 +80,7 @@
     <label title="How far units see under fog of war. Line of sight: as far as the view is clear — hills, rock, houses and woods block it (caves stay dark and use sight ranges). Sight ranges: each unit sees only a few hexes.">Sight <select id="sight"><option value="los">Line of sight</option><option value="range">Sight ranges</option></select></label>
     <label title="Off: each AI is only told what its own units can see. On: AIs are given the full board."><span><input id="cheat" type="checkbox"> AIs see through fog</span></label>
     <label title="Whose eyes the screen shows under fog of war, including the faded markers where that side last saw each enemy. Auto: the human player's (everything when two AIs play).">Fog view <select id="fogView"><option value="auto">Auto (human's; all if AI v AI)</option><option value="blue">Blue's view</option><option value="red">Red's view</option><option value="all">Everything</option></select></label>
+    <label title="Draws what one side's AI was thinking on the board: the turn it chose (gold, attacks in red), the runners-up (dashed), and under fog of war where it suspects hidden enemies are (purple) and its guesses (dots). A summary appears under Info.">AI thinking <select id="aiView"><option value="off">Off</option><option value="blue">Show Blue's</option><option value="red">Show Red's</option></select></label>
   </section>
   <section>
     <h2>Map</h2>
@@ -124,6 +126,7 @@
   <section>
     <h2>Info</h2>
     <div id="info"></div>
+    <div id="thoughtBox" hidden><h2>AI thinking</h2><div id="thought"></div></div>
   </section>
   <h2 style="margin:0">Log</h2>
   <div id="log"></div>

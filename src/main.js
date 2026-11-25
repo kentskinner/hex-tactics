@@ -21,6 +21,7 @@ let custom = null;      // map data (see mapgen.js) when playing a hand-made map
 let editing = false;    // editor is open; state.map is the working copy
 let obs = null;         // what the player at the screen may know: state, minus unseen enemies under fog
 let lastSeen = [new Map(), new Map()];   // per team: enemy id -> where it was last seen
+let thoughts = [null, null];              // per team: what its AI last said it was thinking
 let brush = 't:forest';
 let casting = null;     // spell being aimed by the selected unit, or null
 let mousePx = null;     // last mouse position over the board, in canvas pixels
@@ -66,6 +67,7 @@ function newGame() {
     monsters: editing || $('monsters').value === 'none' ? [] : $('monsters').value === 'cave' ? E.PACKS.cave : undefined,
     wild: editing || $('wild').value === 'map' ? undefined : $('wild').value === 'none' ? [] : 'auto' });
   lastSeen = [new Map(), new Map()];
+  thoughts = [null, null];
   sel = reach = undo = hover = casting = null;
   celebrated = false;
   view.anim = null; view.floats = []; view.fx = []; view.shake = null; view.scorch = new Map();
@@ -111,10 +113,12 @@ async function think(team, known) {
     const { map, ...rest } = known;
     const reply = await new Promise((done) => { const id = ++asked; waiting.set(id, done); brain.postMessage({ type: 'choose', id, team, state: rest }); });
     if (reply.cancelled) return null;
-    if (!reply.error) return reply.action;
+    if (!reply.error) { thoughts[team] = reply.thought || null; return reply.action; }
     console.warn('AI worker error:', reply.error);
   }
-  return ais[team].chooseAction(E.clone(known));
+  const action = ais[team].chooseAction(E.clone(known));
+  thoughts[team] = ais[team].explain?.() || null;
+  return action;
 }
 
 // Whose eyes the screen shows under fog: the human's; with two humans, whoever's turn it is;
@@ -238,6 +242,31 @@ function refresh() {
       + (state.mode === 'raid' ? `  ·  ${TEAM[1 - state.defender]} must clear out ${TEAM[state.defender]} by round ${state.maxRounds}` : '');
   }
   $('info').textContent = infoText(me);
+  // The "AI thinking" view: one side's latest thought, drawn on the board and summed up in words.
+  const watch = editing ? 'off' : $('aiView').value, t = watch === 'off' ? null : thoughts[watch === 'blue' ? 0 : 1];
+  view.thought = t;
+  $('thoughtBox').hidden = watch === 'off';
+  if (watch !== 'off') $('thought').textContent = thoughtText(t, watch === 'blue' ? 0 : 1);
+}
+
+const signed = (v) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1);
+function thoughtText(t, team) {
+  const who = ais[team] ? AIS[$('ctl' + team).value].label : 'a human';
+  if (!ais[team]) return `${TEAM[team]} is played by ${who}: nothing to show.`;
+  if (!t) return `${TEAM[team]} (${who}) has not moved yet` + (AIS[$('ctl' + team).value].label === 'Random' ? ', and picks at random anyway.' : '.');
+  const lines = [`${TEAM[team]} · ${who} · round ${t.round}`];
+  if (t.kind === 'sampler') {
+    lines.push(`Tried ${t.tried} turns (${t.distinct} different)` + (t.worlds ? `, each in ${t.worlds} guesses at where hidden enemies are.` : '.'));
+    lines.push(`Chosen plan ${signed(t.best)} · plain greedy ${signed(t.greedy)} · worst ${signed(t.worst)}`);
+    if (t.plans.length > 1) lines.push('Runners-up (dashed): ' + t.plans.slice(1).map((p) => signed(p.val)).join(', '));
+    if (t.hidden.length) lines.push('Believes hidden: ' + t.hidden.map((h) => `${E.CLASSES[h.cls].name} (${h.turns ? h.turns + (h.turns === 1 ? ' turn' : ' turns') + ' ago' : 'just now'})`).join(', '));
+    lines.push('Gold: its plan · red: attacks · purple: where it suspects hidden enemies · dots: its guesses');
+  } else if (t.kind === 'greedy') {
+    lines.push(`Scored ${t.options} options for this step; the best few:`);
+    t.top.forEach((o, i) => lines.push(`${i ? '   ' : '→ '}${E.CLASSES[o.cls].name} ${o.target ? 'attacks ' + E.CLASSES[o.target.cls].name : o.cast ? 'casts ' + E.SPELLS[o.cast.spell].name : o.watch ? 'goes on overwatch' : 'moves'}  ${signed(o.score)}`));
+    if (t.goals.length) lines.push(`Heading for ${t.goals.length} remembered or unexplored ${t.goals.length === 1 ? 'spot' : 'spots'} (blue rings).`);
+  }
+  return lines.join('\n');
 }
 
 // Spell buttons for the selected unit. Rebuilt only when something about them changes.
@@ -1147,6 +1176,8 @@ $('rand').addEventListener('click', () => {
 });
 $('seed').addEventListener('change', () => { if (!custom) newGame(); });
 $('fogView').addEventListener('change', () => { sel = reach = null; refresh(); });
+if (store('aiView')) $('aiView').value = store('aiView');
+$('aiView').addEventListener('change', (ev) => { store('aiView', ev.target.value); refresh(); });
 $('size').addEventListener('change', () => { if (!custom) newGame(); });
 for (const id of ['fog', 'sight', 'counters', 'zoc', 'flank', 'mode', 'dragons', 'monsters', 'wild']) $(id).addEventListener('change', () => { if (!editing) newGame(); });
 window.addEventListener('pointerdown', unlock);

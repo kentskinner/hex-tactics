@@ -55,7 +55,8 @@ const WAKE = 10;                                     // moves away at which a ra
 // Best next action for the side to move, or null when every unit is done.
 // noise > 1 picks randomly among the top `noise` options (used by the sampler to diversify plans).
 // goals: extra places to advance on besides the enemies in view (see fogGoals).
-export function bestAction(state, noise = 0, rng = Math.random, goals = []) {
+// out: if given, out.top is filled with the best few options and their scores (for the "AI thinking" view).
+export function bestAction(state, noise = 0, rng = Math.random, goals = [], out = null) {
   const enemies = state.units.filter((u) => u.team !== state.turn);
   // Advance on enemies, on fog goals, and on any control point that isn't ours yet.
   const pointMode = state.mode === 'hold' || state.mode === 'siege';
@@ -80,6 +81,11 @@ export function bestAction(state, noise = 0, rng = Math.random, goals = []) {
   }
   if (!cands.length) return null;
   cands.sort((a, b) => b.s - a.s);
+  if (out) {
+    out.top = cands.slice(0, 5).map(({ u, o, s }) => ({ score: s, cls: u.cls, from: { q: u.q, r: u.r, o: u.o, cls: u.cls }, to: { q: o.q, r: o.r, o: o.o, cls: u.cls },
+      target: o.target ? { q: o.target.q, r: o.target.r, o: o.target.o, cls: o.target.cls } : null, cast: o.cast ? { q: o.cast.q, r: o.cast.r, spell: o.cast.spell } : null, watch: !!o.watch }));
+    out.options = cands.length;
+  }
   const { u, o } = cands[noise > 1 ? Math.floor(rng() * Math.min(noise, cands.length)) : 0];
   if (o.q !== u.q || o.r !== u.r || (o.o !== undefined && o.o !== u.o)) {
     return o.o === undefined ? { type: 'move', unit: u.id, q: o.q, r: o.r } : { type: 'move', unit: u.id, q: o.q, r: o.r, o: o.o };
@@ -138,6 +144,15 @@ export default {
   label: 'Greedy',
   create() {
     const memory = new Map();
-    return { chooseAction: (state) => bestAction(state, 0, Math.random, fogGoals(state, memory)) || { type: 'endTurn' } };
+    let thought = null;
+    return {
+      chooseAction(state) {
+        const goals = fogGoals(state, memory), out = {};
+        const a = bestAction(state, 0, Math.random, goals, out) || { type: 'endTurn' };
+        thought = { kind: 'greedy', team: state.turn, round: state.round, top: out.top || [], options: out.options || 0, goals: goals.slice(0, 60).map(({ q, r }) => ({ q, r })) };
+        return a;
+      },
+      explain: () => thought,
+    };
   },
 };

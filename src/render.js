@@ -283,6 +283,7 @@ export class Renderer {
         ctx.stroke();
       } else if (u) this.drawUnit(u, state, ui, ui.anim);
     }
+    if (ui.thought) this.thought(ui.thought);
     if (ui.sight) this.sight(ui.sight);
     if (ui.fx?.length) this.effects(ui, state);
     if (this.weather !== false) this.drawWeather();
@@ -764,6 +765,66 @@ export class Renderer {
       }
     }
     ctx.lineCap = 'butt';
+  }
+
+  // What an AI was thinking (see the "AI thinking" setting): for the plan sampler, where it suspects
+  // hidden enemies are (purple, stronger = more likely), the positions it guessed (dots), where it last
+  // saw them (?), its chosen turn (gold arrows, attacks in red) and the runners-up (dashed); for
+  // Greedy, the best few options for its next step and the places it is heading for.
+  thought(t) {
+    const ctx = this.ctx, S = this.S;
+    const at = (h) => this.centre(h) || this.pos(h.q, h.r);
+    const arrow = (a, b, color, width, dash) => {
+      const p = at(a), q = at(b), len = Math.hypot(q.x - p.x, q.y - p.y);
+      if (len < 1) return;
+      const ux = (q.x - p.x) / len, uy = (q.y - p.y) / len, head = Math.min(S * 0.34, len * 0.5);
+      const ex = q.x - ux * S * 0.18, ey = q.y - uy * S * 0.18;
+      ctx.setLineDash(dash || []);
+      for (const [col, w] of [['rgba(0,0,0,0.55)', width + 2.5], [color, width]]) {
+        ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = w;
+        ctx.beginPath(); ctx.moveTo(p.x + ux * S * 0.3, p.y + uy * S * 0.3); ctx.lineTo(ex - ux * head * 0.6, ey - uy * head * 0.6); ctx.stroke();
+        if (col === color) { ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex - ux * head - uy * head * 0.5, ey - uy * head + ux * head * 0.5); ctx.lineTo(ex - ux * head + uy * head * 0.5, ey - uy * head - ux * head * 0.5); ctx.closePath(); ctx.fill(); }
+      }
+      ctx.setLineDash([]);
+    };
+    const mark = (h, color, r = 0.2) => { const p = at(h); ctx.beginPath(); ctx.arc(p.x, p.y, S * r, 0, 6.3); ctx.fillStyle = color; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.stroke(); };
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (t.kind === 'sampler') {
+      const top = Math.max(0.0001, ...t.heat.map((h) => h.p));
+      for (const h of t.heat) {                               // suspicion
+        const g = this.geo.get(key(h.q, h.r));
+        if (!g) continue;
+        this.topPath(g); ctx.fillStyle = `rgba(190,90,255,${0.08 + 0.5 * Math.sqrt(h.p / top)})`; ctx.fill();
+      }
+      for (const world of t.guesses) for (const u of world) mark(u, 'rgba(230,170,255,0.9)', 0.11);       // one dot per guess
+      ctx.font = `bold ${Math.round(S * 0.5)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (const h of t.hidden) {                             // last seen here
+        const p = at(h);
+        ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(200,120,255,0.95)'; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.arc(p.x, p.y, S * 0.5, 0, 6.3); ctx.stroke(); ctx.setLineDash([]);
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.strokeText(CLASSES[h.cls].glyph + '?', p.x, p.y);
+        ctx.fillStyle = '#ecd2ff'; ctx.fillText(CLASSES[h.cls].glyph + '?', p.x, p.y);
+      }
+      ctx.textBaseline = 'alphabetic';
+      for (let i = t.plans.length - 1; i >= 0; i--) {         // runners-up first, the chosen plan on top
+        for (const s of t.plans[i].steps) {
+          if (i) { if (s.t !== 'watch') arrow(s.from, s.to, 'rgba(225,232,240,0.6)', 1.6, [5, 5]); continue; }
+          if (s.t === 'watch') { const p = at(s.from); ctx.lineWidth = 2.5; ctx.strokeStyle = '#ffb347'; ctx.beginPath(); ctx.arc(p.x, p.y, S * 0.62, 0, 6.3); ctx.stroke(); continue; }
+          arrow(s.from, s.to, s.t === 'move' ? '#ffd84a' : s.t === 'attack' ? '#ff5340' : '#ff9a3c', s.t === 'move' ? 3.2 : 2.6);
+        }
+      }
+    } else if (t.kind === 'greedy') {
+      for (const gl of t.goals) { const p = at(gl); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(120,200,255,0.8)'; ctx.beginPath(); ctx.arc(p.x, p.y, S * 0.3, 0, 6.3); ctx.stroke(); }
+      for (let i = t.top.length - 1; i >= 0; i--) {
+        const o = t.top[i], moved = o.from.q !== o.to.q || o.from.r !== o.to.r;
+        if (moved) arrow(o.from, o.to, i ? 'rgba(225,232,240,0.6)' : '#ffd84a', i ? 1.6 : 3.2, i ? [5, 5] : null);
+        const aim = o.target || o.cast;
+        if (aim) arrow(o.to, aim, i ? 'rgba(255,140,120,0.55)' : o.target ? '#ff5340' : '#ff9a3c', i ? 1.4 : 2.6, i ? [5, 5] : null);
+        if (!i && !moved && !aim) mark(o.from, 'rgba(255,216,74,0.85)', 0.14);
+      }
+    }
+    ctx.restore();
   }
 
   // Sight line from the selected ranged unit to the hovered enemy.
