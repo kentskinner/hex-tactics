@@ -4,7 +4,7 @@ A small turn-based tactics game on a hex grid, built as a sandbox for trying out
 No dependencies beyond Node.
 
 **Video:** [the siege of Stonewatch](https://github.com/kentskinner/hex-tactics/releases/tag/gameplay-video) — a full game,
-65 seconds with sound, the Plan sampler AI attacking the Greedy AI under fog of war.
+63 seconds with sound, the Plan sampler AI attacking the Greedy AI under fog of war.
 
     node server.js                              # play at http://localhost:5173
     node arena.js sampler greedy --games 20     # headless AI-vs-AI
