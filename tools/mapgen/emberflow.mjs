@@ -96,6 +96,7 @@ for (const cls of ['dragon', 'ogre', 'worm', 'bat', 'scout', 'soldier']) { const
   console.log(cls.padEnd(8), 'turns to: centre', roam(u, origin), ' north span', roam(u, ns), ' enemy archer', roam(u, foe)); }
 // Settings added later in the map editor, kept here so this script reproduces the saved map.
 data.biome = "cave";
+data.art = "portrait";
 // Keep the painted background the saved map points at (repaint it in the editor if the terrain changed).
 { const fs = await import('node:fs'); const old = fs.existsSync(root + 'maps/emberflow.json') ? JSON.parse(fs.readFileSync(root + 'maps/emberflow.json', 'utf8')) : {};
   if (old.version !== undefined) data.version = old.version; if (old.backdrop) data.backdrop = old.backdrop;

@@ -85,6 +85,7 @@ for (const d of g.units.filter((u) => u.cls === 'dragon')) {
 console.log('ogres fit:', g.units.filter((u) => u.cls === 'ogre').map((u) => [u.q, u.r, E.fits(g, u), [...E.reachable(g, u).values()].length]));
 // Settings added later in the map editor, kept here so this script reproduces the saved map.
 data.biome = "cave";
+data.art = "portrait";
 data.monsters = ["spider","bat","worm"];
 data.wild = [{"q":0,"r":0,"cls":"troll"},{"q":3,"r":-5,"cls":"spider"},{"q":-3,"r":5,"cls":"spider"}];
 for (const [q, r, t, e] of [[2,-3,"spikes",0],[-4,-2,"spikes",0],[2,-1,"spikes",0],[-2,1,"spikes",0],[4,2,"spikes",0],[-2,3,"spikes",0]]) { const c = data.cells.find((c) => c.q === q && c.r === r); c.t = t; c.e = e; }   // set by hand in the editor afterwards

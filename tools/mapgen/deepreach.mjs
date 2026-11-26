@@ -127,6 +127,7 @@ for (const cls of ['dragon', 'ogre', 'worm', 'bat', 'scout', 'soldier']) { const
   console.log(cls.padEnd(8), 'turns to: centre', roam(u, origin), ' north junction', roam(u, junction), ' grotto', roam(u, grotto), ' den', roam(u, den), ' enemy archer', roam(u, foe)); }
 // Settings added later in the map editor, kept here so this script reproduces the saved map.
 data.biome = "cave";
+data.art = "portrait";
 // Keep the painted background the saved map points at (repaint it in the editor if the terrain changed).
 { const fs = await import('node:fs'); const old = fs.existsSync(root + 'maps/deepreach.json') ? JSON.parse(fs.readFileSync(root + 'maps/deepreach.json', 'utf8')) : {};
   if (old.version !== undefined) data.version = old.version; if (old.backdrop) data.backdrop = old.backdrop;
