@@ -68,6 +68,7 @@
     <label><span><input id="sound" type="checkbox" checked> Sound</span></label>
     <label title="How strongly the hex grid is drawn over the map. All the way left hides it.">Grid lines <input id="grid" type="range" min="0" max="1" step="0.05" value="1"></label>
     <label title="Dark lines on the high side of every slope (thin) and cliff (thick) in the top-down view. The height numbers stay either way."><span><input id="edges" type="checkbox" checked> Height edges</span></label>
+    <label title="Classic: the game's own painted maps and top-down unit figures. Painterly: generated hand-painted art — a repainted map picture (for maps that have one) with units shown either as round portrait tokens or as standing figures, each ringed in its side's colour. Map's own: whichever the map asks for (Classic unless the map says otherwise).">Art style <select id="artStyle"><option value="map">Map's own</option><option value="classic">Classic</option><option value="portrait">Painterly, portraits</option><option value="painterly">Painterly, figures</option></select></label>
     <label title="Falling snow, blowing sand, drifting cloud shadows, embers over lava. Purely decorative."><span><input id="weather" type="checkbox" checked> Weather</span></label>
     <label>Objective <select id="mode"><option value="eliminate">Eliminate</option><option value="hold">Hold the points</option><option value="siege">Siege (Red defends)</option><option value="raid">Raid (clear Red out)</option></select></label>
     <label title="A Dragon fills seven hexes, flies over anything, and breathes a cone of fire.">Dragons <select id="dragons"><option value="both">One each</option><option value="red">Red only</option><option value="blue">Blue only</option><option value="none">None</option></select></label>
@@ -114,6 +115,7 @@
     </div>
     <h3>Save</h3>
     <label title="For caves: rock reaches the roof, so flying creatures can't cross it."><span><input id="edCeiling" type="checkbox"> Cave ceiling (no flying over rock)</span></label>
+    <label title="The art style this map asks for (used while 'Art style' in the sidebar is on 'Map's own').">Map's art <select id="edArt"><option value="">Classic</option><option value="portrait">Painterly, portraits</option><option value="painterly">Painterly, figures</option></select></label>
     <label>Name <input id="edName" type="text" maxlength="40" placeholder="my-map"></label>
     <div class="row"><button id="edSave">Save map</button></div>
     <div id="edMsg" class="help"></div>

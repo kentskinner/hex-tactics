@@ -58,6 +58,15 @@ function log(text) {
   el.scrollTop = el.scrollHeight;
 }
 
+// Which art style to draw: the sidebar's choice, or with "Map's own" whatever the map asks for.
+// It picks the unit figures and, where a saved map has a painterly picture, the backdrop.
+function applyArt() {
+  const v = $('artStyle').value;
+  R.unitArt = v === 'map' ? (state?.map.art || 'classic') : v;
+  const bd = R.backdrop;
+  if (bd?.own) bd.img = R.unitArt !== 'classic' && bd.painterly ? bd.painterly : bd.own;
+}
+
 function newGame() {
   gen++;
   busy = false;
@@ -71,7 +80,8 @@ function newGame() {
   sel = reach = undo = hover = casting = null;
   celebrated = false;
   view.anim = null; view.floats = []; view.fx = []; view.shake = null; view.scorch = new Map();
-  R.facing?.clear();
+  R.facing?.clear(); R.flip?.clear();
+  applyArt();
   makeAIs();
   R.pad = editing ? 2 : 0;
   R.layout(state.map);
@@ -749,6 +759,10 @@ async function openSavedMap(name) {
       const blob = await (await fetch(`maps/${data.backdrop.image}`)).blob();
       bd = { img: await loadImage(blob), blob: null, file: data.backdrop.image,
         hexPx: data.backdrop.hexPx, ox: data.backdrop.ox, oy: data.backdrop.oy };
+      bd.own = bd.img;
+      // The same picture repainted in the painterly style (tools/mapart), if this map has one.
+      const alt = await fetch(`maps/painterly/${data.backdrop.image.replace(/\.\w+$/, '.jpg')}`);
+      if (alt.ok) bd.painterly = await loadImage(await alt.blob());
     } catch { log(`Backdrop image ${data.backdrop.image} is missing`); }
   }
   custom = data;
@@ -832,11 +846,18 @@ $('edCeiling').addEventListener('change', () => {
   if (custom) custom.ceiling = state.map.ceiling;
 });
 
+$('edArt').addEventListener('change', () => {
+  state.map.art = $('edArt').value || null;
+  if (custom) custom.art = state.map.art || undefined;
+  applyArt();
+});
+
 function enterEdit() {
   if (!custom) custom = mapToData(state.map);          // start from the generated map
   setEditing(true);
   $('edName').value = custom.name || '';
   $('edCeiling').checked = !!custom.ceiling;
+  $('edArt').value = custom.art === 'painterly' || custom.art === 'portrait' ? custom.art : '';
   newGame();                                            // fresh working copy of the map, no AI running
   setBrush(brush);
   refreshMapList();
@@ -1188,6 +1209,8 @@ R.grid = +$('grid').value;
 $('weather').checked = store('weather') !== 'off';
 R.weather = $('weather').checked;
 $('weather').addEventListener('change', (ev) => { R.weather = ev.target.checked; store('weather', R.weather ? 'on' : 'off'); });
+if (store('artStyle')) $('artStyle').value = store('artStyle');
+$('artStyle').addEventListener('change', (ev) => { store('artStyle', ev.target.value); applyArt(); });
 $('edges').checked = store('edges') !== 'off';
 R.edges = $('edges').checked;
 $('edges').addEventListener('change', (ev) => { R.edges = ev.target.checked; store('edges', R.edges ? 'on' : 'off'); });

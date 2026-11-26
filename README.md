@@ -16,6 +16,16 @@ archer selected, hovering an enemy draws the sight line and marks what blocks it
 **Display** — "Grid lines" fades the hex grid; "Height edges" switches off the dark slope and cliff lines of the
 top-down view (the height numbers stay).
 
+**Art style** — "Classic" is the game's own art: maps painted from their terrain and top-down unit figures (coin
+tokens when zoomed far out). The two "Painterly" styles swap in generated hand-painted art: for maps that have one,
+the repainted map picture in `maps/painterly/`, and units either as round portrait tokens (`assets/tokens/portrait/`,
+the easier to read) or as standing figures (`assets/tokens/painterly/`), each ringed in its side's colour and looking
+left or right as it moves. "Map's own" (the default) follows the map file: Classic unless it has
+`"art": "portrait"` or `"art": "painterly"`, which the editor's "Map's art" sets. The pictures come from the Codex
+CLI's image tool: `node tools/tokens/generate.mjs` makes the figures (`--portraits` for the portraits) and
+`node tools/mapart/generate.mjs` repaints each map from its classic picture, keeping the layout. A unit or map without
+a painterly picture keeps its classic one; after changing a map's terrain, repaint both.
+
 **Weather** — decorative only, picked by the map's art style (saved in the map file as `biome`): snowfall, blowing
 sand, cloud shadows and pollen over meadows, embers rising from lava, dust motes in other caves. "Weather" in the
 sidebar switches it off.

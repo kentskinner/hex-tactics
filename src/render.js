@@ -18,6 +18,8 @@ const TOP = {
   water: ['#4a93cf', '#4a93cf', '#4a93cf', '#4a93cf'],
   lava: ['#e8641c', '#e8641c', '#e8641c', '#e8641c'],
 };
+// Painterly unit art stands each figure on a ring in its side's colour: [ring, rim light, disc fill].
+const BASE = [['#3e68a8', '#86aade', 'rgba(62,104,168,0.34)'], ['#ac4238', '#e28a7a', 'rgba(172,66,56,0.34)'], ['#9680a8', '#d4c4e2', 'rgba(150,128,168,0.34)']];
 const TEAM = [{ fill: '#3f83e0', dark: '#173763' }, { fill: '#e2574c', dark: '#6e1f1a' }, { fill: '#6fa24a', dark: '#22401a' }];
 
 export class Renderer {
@@ -45,6 +47,21 @@ export class Renderer {
       }));
     }));
     this.tokens = tokens;
+    // Painterly unit art, made by tools/tokens/generate.mjs: assets/tokens/painterly/<class>.webp is
+    // a standing figure and assets/tokens/portrait/<class>.webp a close-up of its head, both
+    // looking right on a clear background. `unitArt` picks which is drawn ('painterly' or
+    // 'portrait'); a class without a picture keeps its classic token.
+    const pictures = async (dir) => {
+      const set = {};
+      await Promise.all(Object.keys(CLASSES).map(async (cls) => {
+        const img = new Image();
+        img.src = `assets/tokens/${dir}/${cls}.webp`;
+        try { await img.decode(); set[cls] = img; } catch { /* no picture for this class */ }
+      }));
+      return set;
+    };
+    [this.art, this.portraits] = await Promise.all([pictures('painterly'), pictures('portrait')]);
+    this.flip = new Map();                           // unit id -> painterly figure mirrored to look left
     this.painted = paintedTokens();                  // top-down painted figures, for the classes that have one
     this.facing = new Map();                         // unit id -> which way it faces on screen (set by the UI as units act)
   }
@@ -964,14 +981,55 @@ export class Renderer {
     // A round token (or painted figure) that stays inside its hex.
     const f = u.hp / maxHp(u), img = this.tokens?.[u.cls]?.[u.team], r = S * (img ? 0.56 : 0.46);
     // A painted figure when there is one — but a one-hex figure too small to make out falls back to its coin.
-    const figure = (isBig(u) || S >= 20) && this.painted ? this.painted.get(u.cls, u.team, this.facing?.get(u.id)) : null;
-    if (!figure) {
+    const face = this.unitArt === 'portrait' ? this.portraits?.[u.cls] : null;
+    const art = face || (this.unitArt === 'painterly' ? this.art?.[u.cls] : null);
+    const figure = !art && (isBig(u) || S >= 20) && this.painted ? this.painted.get(u.cls, u.team, this.facing?.get(u.id)) : null;
+    if (!figure && !art) {
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
       ctx.beginPath(); ctx.ellipse(x + r * 0.1, y + r * 0.16, r, r, 0, 0, Math.PI * 2); ctx.fill();
     }
     ctx.save();
     if (u.acted && u.team === state.turn && state.winner === null) ctx.filter = 'saturate(0.25) brightness(0.8)';
-    if (figure) {
+    if (art) {
+      // A standing figure can't be turned like a top-down one, so it looks left or right: mirrored
+      // once it faces clearly the other way (and left alone while it faces up or down the screen).
+      const a = this.facing?.get(u.id) ?? this.painted?.facing(u.team) ?? 0, c = Math.cos(a);
+      if (Math.abs(c) > 0.25 || !this.flip.has(u.id)) this.flip.set(u.id, c < -0.01);
+      const B = BASE[u.team] || BASE[2];
+      if (face) {
+        // A portrait token: the close-up on a pale disc tinted with its side's colour, inside a
+        // bold ring of that colour — the way virtual tabletops show a figure.
+        const rr = S * 0.6;
+        ctx.fillStyle = 'rgba(0,0,0,0.38)';
+        ctx.beginPath(); ctx.arc(x + rr * 0.1, y + rr * 0.16, rr, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2);
+        ctx.fillStyle = '#ece4ce'; ctx.fill();
+        ctx.fillStyle = B[2]; ctx.fill();
+        ctx.save();
+        ctx.clip();
+        ctx.translate(x, y);
+        if (this.flip.get(u.id)) ctx.scale(-1, 1);
+        ctx.drawImage(face, -rr * 1.06, -rr * 1.02, rr * 2.12, rr * 2.12);
+        ctx.restore();
+        ctx.beginPath(); ctx.arc(x, y, rr - S * 0.05, 0, Math.PI * 2);
+        ctx.lineWidth = S * 0.15; ctx.strokeStyle = 'rgba(24,16,10,0.92)'; ctx.stroke();
+        ctx.lineWidth = S * 0.105; ctx.strokeStyle = B[0]; ctx.stroke();
+        ctx.lineWidth = S * 0.028; ctx.strokeStyle = B[1]; ctx.beginPath(); ctx.arc(x, y, rr - S * 0.028, 3.4, 5.3); ctx.stroke();
+        ctx.restore();
+        return this.unitBars(u, x, y);
+      }
+      const rr = S * 0.5, side = S * (isBig(u) ? 1.4 : 1.75);
+      ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2);
+      ctx.fillStyle = B[2]; ctx.fill();
+      ctx.lineWidth = S * 0.115; ctx.strokeStyle = 'rgba(24,16,10,0.9)'; ctx.stroke();
+      ctx.lineWidth = S * 0.08; ctx.strokeStyle = B[0]; ctx.stroke();
+      ctx.lineWidth = S * 0.022; ctx.strokeStyle = B[1]; ctx.beginPath(); ctx.arc(x, y, rr + S * 0.022, 3.4, 5.3); ctx.stroke();
+      ctx.fillStyle = 'rgba(0,0,0,0.34)';             // the shadow at its feet
+      ctx.beginPath(); ctx.ellipse(x + S * 0.03, y + side * 0.33, side * 0.3, side * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.translate(x, y - side * 0.1);
+      if (this.flip.get(u.id)) ctx.scale(-1, 1);
+      ctx.drawImage(art, -side / 2, -side / 2, side, side);
+    } else if (figure) {
       const half = S * 0.56 * figure.scale;
       ctx.drawImage(figure.canvas, x - half, y - half, half * 2, half * 2);
     } else if (img) {
@@ -986,6 +1044,12 @@ export class Renderer {
       ctx.textBaseline = 'alphabetic';
     }
     ctx.restore();
+    this.unitBars(u, x, y);
+  }
+
+  // What rides above a unit: its health bar, a hero's star and the overwatch mark.
+  unitBars(u, x, y) {
+    const ctx = this.ctx, S = this.S, f = u.hp / maxHp(u);
     const bw = S * 0.7, bh = Math.max(4, S * 0.12), bx = x - bw / 2, by = y - S * 0.78;
     ctx.fillStyle = '#111'; ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
     ctx.fillStyle = f > 0.5 ? '#5fd35f' : f > 0.25 ? '#f0c040' : '#f05040';

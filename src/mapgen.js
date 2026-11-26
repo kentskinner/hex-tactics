@@ -32,6 +32,8 @@ export function generateMap(seed = 1, radius = 6) {
 //                                    Spawns may be marked hero: true (tougher units: see HERO_HP in the engine).
 //     scenario: true,                a map with its own cast: the sidebar's Dragons setting is switched off for it (optional)
 //     biome: 'meadow' | 'snow' | 'desert' | 'cave' | 'dungeon' | 'alien',   the art style it was painted in; picks the weather (optional)
+//     art: 'painterly' | 'portrait', the art style this map asks for: painterly standing figures or portrait tokens, and when
+//                                    there is one the picture in maps/painterly/ (optional; without it, the classic look)
 //     ceiling: true,                 a cave: flyers can't cross rock (optional)
 //     backdrop: { image: 'file.png', hexPx, ox, oy } | null }
 // Boards can be any shape: a hex exists if it is in `cells`.
@@ -42,7 +44,7 @@ export function mapFromData(d) {
   const spawns = [0, 1].map((t) => (d.spawns?.[t] || []).map((s) => ({ ...s })));
   const objectives = (d.objectives || []).map(({ q, r }) => ({ q, r }));
   return { cells, spawns, objectives, ceiling: !!d.ceiling, monsters: Array.isArray(d.monsters) ? d.monsters.slice() : null,
-    wild: (d.wild || []).map((w) => ({ ...w })), siege: d.siege ? { ...d.siege } : null, raid: d.raid ? { ...d.raid } : null, scenario: !!d.scenario, biome: d.biome || null, losCache: new Map(), seed: d.name || 'custom', name: d.name || null };
+    wild: (d.wild || []).map((w) => ({ ...w })), siege: d.siege ? { ...d.siege } : null, raid: d.raid ? { ...d.raid } : null, scenario: !!d.scenario, biome: d.biome || null, art: d.art === 'painterly' || d.art === 'portrait' ? d.art : null, losCache: new Map(), seed: d.name || 'custom', name: d.name || null };
 }
 
 export function mapToData(map, name = null, backdrop = null) {
@@ -54,6 +56,7 @@ export function mapToData(map, name = null, backdrop = null) {
     objectives: (map.objectives || []).map(({ q, r }) => ({ q, r })),
     ceiling: !!map.ceiling,
     ...(map.biome ? { biome: map.biome } : {}),
+    ...(map.art ? { art: map.art } : {}),
     ...(map.siege ? { siege: { ...map.siege } } : {}),
     ...(map.raid ? { raid: { ...map.raid } } : {}),
     ...(map.scenario ? { scenario: true } : {}),
