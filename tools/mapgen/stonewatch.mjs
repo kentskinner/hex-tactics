@@ -56,6 +56,7 @@ for (const s of data.spawns[0]) { const c = cells.get(key(s.q, s.r)); c.t = 'gra
 
 data.name = 'stonewatch';
 data.biome = 'meadow';
+data.art = 'portrait';
 data.objectives = [at(19, 7)];
 data.siege = { defender: 1, target: 2, rounds };
 const map = mapFromData(data);

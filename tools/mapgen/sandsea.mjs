@@ -101,6 +101,7 @@ console.log('wild:', g.units.filter((u) => u.team === 2).map((u) => `${u.cls}@${
 // Settings added later in the map editor, kept here so this script reproduces the saved map.
 data.ceiling = false;
 data.biome = "desert";
+data.art = "portrait";
 // Keep the painted background the saved map points at (repaint it in the editor if the terrain changed).
 { const fs = await import('node:fs'); const old = fs.existsSync(root + 'maps/sandsea.json') ? JSON.parse(fs.readFileSync(root + 'maps/sandsea.json', 'utf8')) : {};
   if (old.version !== undefined) data.version = old.version; if (old.backdrop) data.backdrop = old.backdrop;

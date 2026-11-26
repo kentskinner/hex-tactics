@@ -44,6 +44,7 @@ const count = {}; for (const c of data.cells) count[c.t] = (count[c.t] || 0) + 1
 data.objectives = [{"q":0,"r":0},{"q":3,"r":-6},{"q":-3,"r":6}];
 data.ceiling = false;
 data.biome = "snow";
+data.art = "portrait";
 // Keep the painted background the saved map points at (repaint it in the editor if the terrain changed).
 { const fs = await import('node:fs'); const old = fs.existsSync(root + 'maps/frostmere.json') ? JSON.parse(fs.readFileSync(root + 'maps/frostmere.json', 'utf8')) : {};
   if (old.version !== undefined) data.version = old.version; if (old.backdrop) data.backdrop = old.backdrop;

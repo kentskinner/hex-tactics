@@ -57,6 +57,7 @@ data.spawns = [0, 1].map((t) => [5, 6, 7, 8, 9].map((row) => { const h = at(row 
 for (const list of data.spawns) for (const s of list) { const c = cell(s); if (c.t !== 'road') c.t = 'grass'; c.e = 0; }
 data.name = 'millbrook';
 data.biome = 'meadow';
+data.art = 'portrait';
 data.objectives = [origin, { q: ford.q, r: ford.r }, mir(ford)];
 
 const map = mapFromData(data);

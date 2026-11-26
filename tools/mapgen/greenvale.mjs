@@ -87,6 +87,7 @@ data.cells = data.cells.filter((c) => !c.drop);
 for (const c of [...cells.values()]) if (c.drop) cells.delete(key(c.q, c.r));
 data.name = 'greenvale';
 data.biome = 'meadow';
+data.art = 'portrait';
 const nb = at(bc, bridgeRow);
 data.objectives = [{ q: 0, r: 0 }, nb, { q: -nb.q, r: -nb.r }];
 data.wild = [{ ...circle, cls: 'troll' }, { q: -circle.q, r: -circle.r, cls: 'troll' }];

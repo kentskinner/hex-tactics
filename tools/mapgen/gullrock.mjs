@@ -68,6 +68,7 @@ for (const s of data.spawns.flat()) { const c = cells.get(key(s.q, s.r)); if (c.
 
 data.name = 'gullrock';
 data.biome = 'meadow';
+data.art = 'portrait';
 data.objectives = [at(13, 12), at(13, 8), at(13, 15)];
 const map = mapFromData(data);
 console.log('cells', data.cells.length, 'problem:', mapProblem(map));

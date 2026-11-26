@@ -43,6 +43,7 @@ mkdirSync(root + 'maps', { recursive: true });
 // Settings added later in the map editor, kept here so this script reproduces the saved map.
 data.objectives = [{"q":0,"r":0},{"q":-2,"r":-4},{"q":2,"r":4}];
 data.biome = "meadow";
+data.art = "portrait";
 // Keep the painted background the saved map points at (repaint it in the editor if the terrain changed).
 { const fs = await import('node:fs'); const old = fs.existsSync(root + 'maps/stonebridge.json') ? JSON.parse(fs.readFileSync(root + 'maps/stonebridge.json', 'utf8')) : {};
   if (old.version !== undefined) data.version = old.version; if (old.backdrop) data.backdrop = old.backdrop;

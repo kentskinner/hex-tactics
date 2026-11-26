@@ -79,6 +79,7 @@ for (const s of data.spawns.flat()) {
 
 data.name = 'tycho';
 data.biome = 'alien';
+data.art = 'portrait';
 data.scenario = true;
 const post = at(12, 5);
 data.objectives = [origin, post, { q: -post.q, r: -post.r }];

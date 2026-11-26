@@ -62,6 +62,7 @@ for (const s of data.spawns[1]) { const c = cells.get(key(s.q, s.r)); if (c.t ==
 
 data.name = 'skyreach';
 data.biome = 'snow';
+data.art = 'portrait';
 data.objectives = [at(19, 3)];
 data.siege = { defender: 1, target: 2, rounds };
 data.wild = [{ ...at(15, 11), cls: 'troll' }];

@@ -48,6 +48,7 @@ for (const s of data.spawns.flat()) { const c = cells.get(key(s.q, s.r)); if (c.
 
 data.name = 'kepler';
 data.biome = 'alien';
+data.art = 'portrait';
 data.scenario = true;
 data.objectives = [at(11, 7), at(6, 7), at(17, 8)];
 const map = mapFromData(data);

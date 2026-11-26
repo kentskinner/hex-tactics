@@ -69,6 +69,7 @@ const g = E.createGame(map, { dragons: 'both' });
 console.log('dragons:', g.units.filter((u) => u.cls === 'dragon').map((u) => [u.q, u.r, E.fits(g, u)]), 'ogres fit:', g.units.filter((u) => u.cls === 'ogre').every((u) => E.fits(g, u)));
 // Settings added later in the map editor, kept here so this script reproduces the saved map.
 data.biome = "desert";
+data.art = "portrait";
 // Keep the painted background the saved map points at (repaint it in the editor if the terrain changed).
 { const fs = await import('node:fs'); const old = fs.existsSync(root + 'maps/sunspire.json') ? JSON.parse(fs.readFileSync(root + 'maps/sunspire.json', 'utf8')) : {};
   if (old.version !== undefined) data.version = old.version; if (old.backdrop) data.backdrop = old.backdrop;
