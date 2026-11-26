@@ -51,6 +51,7 @@ for (const s of data.spawns.flat()) { const c = cells.get(key(s.q, s.r)); if (c.
 
 data.name = 'blackvault';
 data.biome = 'dungeon';
+data.art = 'portrait';
 data.ceiling = true;
 data.objectives = [at(20, 7)];
 data.siege = { defender: 1, target: 2, rounds };

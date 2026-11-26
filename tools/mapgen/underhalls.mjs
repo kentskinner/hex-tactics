@@ -63,6 +63,7 @@ for (const s of data.spawns.flat()) { const c = cells.get(key(s.q, s.r)); c.t = 
 
 data.name = 'underhalls';
 data.biome = 'dungeon';
+data.art = 'portrait';
 data.ceiling = true;
 data.scenario = true;                                              // no room for dragons down here
 const north = at(18, 3), crypt = at(11, 19);

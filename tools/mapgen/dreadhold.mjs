@@ -73,6 +73,7 @@ for (const s of data.spawns.flat()) { const c = cells.get(key(s.q, s.r)); if (c.
 
 data.name = 'dreadhold';
 data.biome = 'dungeon';
+data.art = 'portrait';
 data.ceiling = true;
 data.objectives = [];
 data.raid = { defender: 1, rounds };
