@@ -33,13 +33,15 @@ sidebar switches it off.
 **Zoom and pan** — mouse wheel zooms on the cursor; drag with the right or middle button (or hold Space and
 drag) to pan; arrow keys pan, `+` / `-` zoom, `0` or the Fit button shows the whole map again.
 
-**Map size** — "Size" in the sidebar sets how big random maps are, from Standard (127 hexes) to Vast (817);
-in the arena, `--size <radius>` (6 is standard). The round limit grows with the distance between the armies
-(30 on standard maps). For your own large maps, the editor's blank board goes up to 40 × 40.
+**Maps** — the browser game plays the saved maps in `maps/`, picked from the Map dropdown; it opens on the one
+played last (Stonebridge the first time). The arena plays each pair of games on a freshly generated map unless
+given `--map <name>`; `--size <radius>` sets how big those are (6 is standard, 127 hexes). The round limit grows
+with the distance between the armies (30 on standard maps). For your own large maps, the editor's blank board goes
+up to 40 × 40.
 
 ## Map editor
 
-"Edit map" opens the editor on the current map (a generated one becomes an editable copy).
+"Edit map" opens the editor on the current map.
 
 - **Brushes** — click or drag to paint terrain or height; click to place or remove spawn points
   (optionally with a fixed class); "Add hex" / "Remove hex" change the board's shape.
@@ -309,7 +311,7 @@ action at a time.
 ## Layout
 
 - `src/engine.js` — rules and state; no DOM, no randomness
-- `src/mapgen.js` — seeded, symmetric map generator
+- `src/mapgen.js` — map files, and the seeded, symmetric map generator the arena uses
 - `src/ai/` — AIs
 - `src/render.js`, `src/main.js` — canvas renderer and browser UI
 - `arena.js` — tournament runner

@@ -1,5 +1,5 @@
 // Browser UI: human input, AI turn loop, animation, and the map editor. All rules live in engine.js.
-import { generateMap, mapFromData, mapToData, mapProblem, rectBoard } from './mapgen.js';
+import { mapFromData, mapToData, mapProblem, rectBoard } from './mapgen.js';
 import * as E from './engine.js';
 import { AIS } from './ai/index.js';
 import { Renderer } from './render.js';
@@ -17,7 +17,8 @@ let state, ais = [null, null];
 let gen = 0;            // bumped on every new game so stale async work can bail out
 let busy = false;       // an animation or AI turn is in progress
 let sel = null, reach = null, undo = null, hover = null;
-let custom = null;      // map data (see mapgen.js) when playing a hand-made map; null = random seed
+let custom = null;      // the map being played, as map data (see mapgen.js); set once the first map has loaded
+const FIRST_MAP = 'stonebridge';   // the map a first visit opens on
 let editing = false;    // editor is open; state.map is the working copy
 let obs = null;         // what the player at the screen may know: state, minus unseen enemies under fog
 let lastSeen = [new Map(), new Map()];   // per team: enemy id -> where it was last seen
@@ -70,7 +71,7 @@ function applyArt() {
 function newGame() {
   gen++;
   busy = false;
-  const map = custom ? mapFromData(custom) : generateMap(Math.max(1, Math.floor(+$('seed').value) || 1), +$('size').value || 6);
+  const map = mapFromData(custom);
   state = E.createGame(map, { fog: !editing && $('fog').checked, sight: $('sight').value, flank: $('flank').checked, counters: $('counters').checked, zoc: $('zoc').checked,
     mode: editing ? 'eliminate' : $('mode').value, dragons: editing ? 'none' : $('dragons').value,
     monsters: editing || $('monsters').value === 'none' ? [] : $('monsters').value === 'cave' ? E.PACKS.cave : undefined,
@@ -86,7 +87,7 @@ function newGame() {
   R.pad = editing ? 2 : 0;
   R.layout(state.map);
   $('log').textContent = '';
-  log(custom ? `New game on ${custom.name ? `map "${custom.name}"` : 'unsaved custom map'}` : `New game on map seed ${state.map.seed}`);
+  log(`New game on ${custom.name ? `map "${custom.name}"` : 'unsaved custom map'}`);
   refresh();
   if (!editing) pump();
 }
@@ -168,8 +169,6 @@ function updateFog() {
 function refresh() {
   const b = $('banner');
   updateFog();
-  $('seed').disabled = !!custom;
-  $('size').disabled = !!custom;
   if (editing) {
     Object.assign(view, { selected: null, reach: null, reachCells: null, destCells: null, targets: new Set(), hoverTargets: new Set(), threat: null, sight: null });
     const cell = hover && E.cellAt(state.map, hover);
@@ -732,7 +731,6 @@ async function refreshMapList() {
   try { names = await (await fetch('api/maps')).json(); } catch { /* server without the maps API */ }
   const s = $('mapSel');
   s.textContent = '';
-  s.add(new Option('Random (by seed)', '#random'));
   // Label each saved map with its size, e.g. "greenvale — Vast (839)".
   const sizes = await Promise.all(names.map(async (n) => {
     try { return (await (await fetch('maps/' + encodeURIComponent(n) + '.json')).json()).cells.length; } catch { return 0; }
@@ -740,7 +738,7 @@ async function refreshMapList() {
   const sizeName = (c) => (c < 200 ? 'Standard' : c < 350 ? 'Large' : c < 600 ? 'Huge' : 'Vast');
   names.forEach((n, i) => s.add(new Option(sizes[i] ? n + ' — ' + sizeName(sizes[i]) + ' (' + sizes[i] + ')' : n, n)));
   if (custom && !names.includes(custom.name)) s.add(new Option('Custom (unsaved)', '#custom'));
-  s.value = custom ? (names.includes(custom.name) ? custom.name : '#custom') : '#random';
+  if (custom) s.value = names.includes(custom.name) ? custom.name : '#custom';
   return names;
 }
 
@@ -787,19 +785,9 @@ async function openSavedMap(name) {
   refreshMapList();
 }
 
-function useRandomMap() {
-  custom = null;
-  R.backdrop = null;
-  setEditing(false);
-  store('map', '');
-  newGame();
-  refreshMapList();
-}
-
 $('mapSel').addEventListener('change', (ev) => {
   const v = ev.target.value;
-  if (v === '#random') useRandomMap();
-  else if (v !== '#custom') openSavedMap(v).catch(() => log(`Could not load map "${v}"`));
+  if (v !== '#custom') openSavedMap(v).catch(() => log(`Could not load map "${v}"`));
 });
 
 // ---- Editor ----
@@ -853,7 +841,6 @@ $('edArt').addEventListener('change', () => {
 });
 
 function enterEdit() {
-  if (!custom) custom = mapToData(state.map);          // start from the generated map
   setEditing(true);
   $('edName').value = custom.name || '';
   $('edCeiling').checked = !!custom.ceiling;
@@ -1191,15 +1178,9 @@ $('zoomIn').addEventListener('click', () => R.zoomBy(1.25));
 $('zoomOut').addEventListener('click', () => R.zoomBy(0.8));
 $('zoomFit').addEventListener('click', () => R.fit());
 $('new').addEventListener('click', () => { if (editing) setEditing(false); newGame(); });
-$('rand').addEventListener('click', () => {
-  $('seed').value = 1 + Math.floor(Math.random() * 99999);
-  useRandomMap();
-});
-$('seed').addEventListener('change', () => { if (!custom) newGame(); });
 $('fogView').addEventListener('change', () => { sel = reach = null; refresh(); });
 if (store('aiView')) $('aiView').value = store('aiView');
 $('aiView').addEventListener('change', (ev) => { store('aiView', ev.target.value); refresh(); });
-$('size').addEventListener('change', () => { if (!custom) newGame(); });
 for (const id of ['fog', 'sight', 'counters', 'zoc', 'flank', 'mode', 'dragons', 'monsters', 'wild']) $(id).addEventListener('change', () => { if (!editing) newGame(); });
 window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
@@ -1219,18 +1200,27 @@ setEnabled($('sound').checked);
 $('sound').addEventListener('change', (ev) => { setEnabled(ev.target.checked); store('sound', ev.target.checked ? 'on' : 'off'); });
 $('end').addEventListener('click', endTurn);
 $('undo').addEventListener('click', undoMove);
-window.addEventListener('resize', () => R.layout(state.map));
+window.addEventListener('resize', () => { if (state) R.layout(state.map); });
+
+// Open the map played last time, or the first map; with no saved maps at all, the editor on a blank board.
+async function start() {
+  const names = await refreshMapList().catch(() => []);
+  const last = store('map');
+  for (const name of [last, FIRST_MAP, names[0]]) {
+    if (!name || !names.includes(name)) continue;
+    try { return await openSavedMap(name); } catch (e) { console.warn(`could not open map "${name}"`, e); }
+  }
+  custom = rectBoard(15, 11);
+  R.backdrop = null;
+  enterEdit();
+  $('edMsg').textContent = 'No saved maps found: paint one here and save it.';
+}
 
 setEditing(false);
-newGame();
 R.loadTokens().catch((e) => console.warn('token art not loaded', e));
-(function frame() {
+start().then(() => (function frame() {
   R.draw(obs || state, view);
   requestAnimationFrame(frame);
-})();
-refreshMapList().then((names) => {
-  const last = store('map');
-  if (last && names.includes(last)) return openSavedMap(last);
-}).catch((e) => console.warn('could not restore last map', e));
+})());
 
 window.game = { get state() { return state; }, view, E, AIS, setBackdrop };   // handy for poking around in the console
