@@ -302,6 +302,10 @@ action at a time.
 - `src/ai/` — AIs
 - `src/render.js`, `src/main.js` — canvas renderer and browser UI
 - `arena.js` — tournament runner
+- `tools/mapgen/` — the scripts that built the named maps, one per map (`node tools/mapgen/dreadhold.mjs`). Each
+  rewrites its `maps/<name>.json`, keeping the painted background; repaint in the map editor if you change the terrain.
+  The scenario maps take their army sizes and round limits as arguments (see the top of each script), and setting
+  `OUT=some/file.json` writes a trial copy elsewhere for `arena.js --map some/file.json`.
 
 ## Licence
 
