@@ -105,12 +105,12 @@ ogres can use it; the wings narrow to single doors. Three control points: the th
 
 `dreadhold` is a vast asymmetric dungeon raid (851 hexes, 386 of them floor; dungeon style). Six heroes — two soldiers,
 cleric, wizard, archer, scout — come in by the west door and must clear out the whole garrison within 30 rounds:
-twenty goblins, four archers, an ogre in the inner ward, and in the throne room at the far end a wizard and the
+twelve goblins spread through every room, four archers, an ogre in the inner ward, and in the throne room at the far end a wizard and the
 warlord, an ogre with a hero's double health. West to east: guard room, barracks and flooded crypt (a neutral spider);
 a great hall cut by a lava channel with three bridges, an armoury north of it and a neutral troll's den south; the
 inner ward, a treasure vault and the throne room. One-hex back ways run round the north (armoury to ward) and the
 south (crypt, den, vault, the throne room's back door). The garrison sleeps room by room until the raiders come near.
-Between two Plan samplers the heroes won 3 of 6; Greedy heroes charge in and lose.
+Between two Plan samplers the heroes won 4 of 6 under fog of war and all 6 without it.
 
 `millbrook` is a village (337 hexes, meadow): houses along a road on both banks of a stream, a stone bridge at the
 centre and a ford above and below. Smoke rises from the chimneys when Weather is on.
