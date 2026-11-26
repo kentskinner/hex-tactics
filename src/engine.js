@@ -60,7 +60,7 @@ export const CLASSES = {
   goblin:  { name: 'Goblin',  glyph: 'G', hp: 8,  atk: 4, move: 4, rmin: 1, rmax: 1, sight: 4, value: 0.5 },     // weak alone, dangerous in numbers
   // arc: lobs its shot, so it needs no sight line (walls, hills and houses don't shelter the target) and gets nothing
   //      from high ground (no extra range or damage). setup: can't shoot in a turn in which it has moved, and never strikes back.
-  catapult: { name: 'Catapult', glyph: 'K', hp: 10, atk: 4, move: 2, rmin: 3, rmax: 7, sight: 4, arc: true, setup: true, pierce: true, value: 1.5 },
+  catapult: { name: 'Catapult', glyph: 'K', hp: 10, atk: 4, move: 2, rmin: 3, rmax: 7, sight: 4, size: 'large', arc: true, setup: true, pierce: true, value: 1.5 },
   cleric:  { name: 'Cleric',  glyph: 'H', hp: 12, atk: 4, move: 3, rmin: 1, rmax: 1, sight: 5, spells: ['heal'] },
   // Science fiction. beam: shoots energy bolts (looks only). Marines fight at any distance up to 3.
   marine:  { name: 'Marine',  glyph: 'R', hp: 10, atk: 4, move: 3, rmin: 1, rmax: 3, sight: 5, beam: true },

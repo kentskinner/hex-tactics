@@ -186,10 +186,12 @@ The map file format is documented at the top of the "Map files" section in `src/
   Stalker (9 hp, 5 atk, move 5, climbs), Spitter (8 hp, 4 atk, move 3, range 2–4, acid ignores cover), Brute (28 hp,
   7 atk, move 3, three hexes, regenerates 1).
   Scenario units: Goblin (8 hp, 4 atk, move 4), Cleric (12 hp, 4 atk, move 3; Heal restores 5 hp to a friend within
-  2 hexes or to itself, cooldown 3), Catapult (10 hp, 4 atk, move 2, range 3–7: lobs its shot, so it needs no sight
-  line and ignores cover and height, but it can't shoot in a turn in which it has moved and never strikes back).
+  2 hexes or to itself, cooldown 3), Catapult (10 hp, 4 atk, move 2, three hexes, range 3–7: lobs its shot, so it
+  needs no sight line and ignores cover and height, but it can't shoot in a turn in which it has moved and never
+  strikes back).
 - **Big creatures** — a class's `size` gives it a footprint of several hexes: `large` is three mutually
-  adjacent hexes (the Ogre and the Rock worm), `huge` is a hex and its six neighbours (the Dragon).
+  adjacent hexes (the Ogre, the Rock worm, the Catapult, the Mech and the Brute), `huge` is a hex and its six
+  neighbours (the Dragon).
   A big creature needs every hex of its footprint to be free, passable ground with no cliff under it, so
   it can't use one-hex gaps. Like one-hex units it may pass through friends, but not stop on them. It is attacked, seen, stopped and scored through
   any of its hexes; it gets cover only if all of them have it, defends on its lowest hex and attacks from

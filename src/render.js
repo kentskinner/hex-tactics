@@ -20,8 +20,6 @@ const TOP = {
 };
 // Painterly unit art stands each figure on a ring in its side's colour: [ring, rim light, disc fill].
 const BASE = [['#3e68a8', '#86aade', 'rgba(62,104,168,0.34)'], ['#ac4238', '#e28a7a', 'rgba(172,66,56,0.34)'], ['#9680a8', '#d4c4e2', 'rgba(150,128,168,0.34)']];
-// One-hex units the painterly styles draw larger than the rest, as the classic art does: a siege engine should look like one.
-const OVERSIZE = { catapult: 1.4 };
 const TEAM = [{ fill: '#3f83e0', dark: '#173763' }, { fill: '#e2574c', dark: '#6e1f1a' }, { fill: '#6fa24a', dark: '#22401a' }];
 
 export class Renderer {
@@ -1001,7 +999,7 @@ export class Renderer {
       if (face) {
         // A portrait token: the close-up on a pale disc tinted with its side's colour, inside a
         // bold ring of that colour — the way virtual tabletops show a figure.
-        const rr = S * 0.6 * (OVERSIZE[u.cls] || 1);
+        const rr = S * 0.6;
         ctx.fillStyle = 'rgba(0,0,0,0.38)';
         ctx.beginPath(); ctx.arc(x + rr * 0.1, y + rr * 0.16, rr, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2);
@@ -1020,7 +1018,7 @@ export class Renderer {
         ctx.restore();
         return this.unitBars(u, x, y);
       }
-      const rr = S * 0.5 * (OVERSIZE[u.cls] || 1), side = S * (isBig(u) ? 1.4 : 1.75) * (OVERSIZE[u.cls] || 1);
+      const rr = S * 0.5, side = S * (isBig(u) ? 1.4 : 1.75);
       ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2);
       ctx.fillStyle = B[2]; ctx.fill();
       ctx.lineWidth = S * 0.115; ctx.strokeStyle = 'rgba(24,16,10,0.9)'; ctx.stroke();
