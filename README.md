@@ -255,7 +255,8 @@ knows how to draw (see `thought()` in `src/render.js`).
 
 ### Fog of war (optional)
 
-Tick "Fog of war" in the sidebar, or pass `--fog` to the arena.
+On by default in the browser: untick "Fog of war" in the sidebar to play with the whole board in view. The arena plays
+without it unless you pass `--fog`.
 
 - "Sight" in the sidebar picks how far units see. **Line of sight** (default): in the open a unit sees every hex it
   has a clear line to, however far — hills, rock and houses block the view, and so do woods in between unless it
