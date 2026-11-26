@@ -97,6 +97,12 @@ and a wizard in the vault) defends. Beyond the guard room the ways on are a grea
 with two bridges, a barracks with a one-hex back passage round to the vault's rear door, and a flooded crypt with a
 neutral troll in it. Between two Plan samplers the heroes won 4 of 10.
 
+`underhalls` is a vast dungeon (839 hexes, 369 of them floor; dungeon style), a half-turn copy of itself. Two war parties
+of ten come in by doors at opposite ends and fight through the halls for the throne room in the middle, which has a
+dais between two lava pits. Each side has an entry hall, a pillared hub, a barracks wing and a flooded crypt wing with
+a giant spider; the wings lead round to two side chambers, each with a troll. The main way is two hexes wide so the
+ogres can use it; the wings narrow to single doors. Three control points: the throne and the two side chambers.
+
 `millbrook` is a village (337 hexes, meadow): houses along a road on both banks of a stream, a stone bridge at the
 centre and a ford above and below. Smoke rises from the chimneys when Weather is on.
 
